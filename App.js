@@ -1,11 +1,11 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import AddEventScreen from './screens/AddEventScreen';
-import CalendarScreen from './screens/CalendarScreen';
-import GoogleSignInScreen from './screens/GoogleSignInScreen';
-import HomeScreen from './screens/HomeScreen';
+import AddEventScreen from './components/AddEventScreen';
+import CalendarScreen from './components/CalendarScreen';
+import GoogleSignInScreen from './components/GoogleSignInScreen';
+import HomeScreen from './components/HomeScreen';
+import ToDoScreen from './components/ToDoScreen';
 import ManageEventsScreen from './screens/ManageEventsScreen';
-import ToDoScreen from './screens/ToDoScreen';
 
 const Stack = createNativeStackNavigator();
 
