@@ -167,82 +167,116 @@
 // });
 
 
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export type DayType = {
-  date: string;
-  schedule: Array<{ title: string; time: string }>;
+  date: string; // "SUNDAY 11 JUNE"
+  schedule: Array<{
+    title: string;
+    time: string;
+    originalEventIndex?: number; // needed for edit/delete
+  }>;
   weather: { temp: string; iconUrl: string; desc: string; city: string };
   onThisDay: string;
   actions: Array<{ id: number; text: string }>;
 };
 
-type Props = { day: DayType };
+type Props = {
+  day: DayType;
+  onEditEvent?: (eventIndex: number) => void;
+  onDeleteEvent?: (eventIndex: number) => void;
+};
 
-export default function TodaysCard({ day }: Props) {
+export default function TodaysCard({ day, onEditEvent, onDeleteEvent }: Props) {
   return (
     <LinearGradient
-        colors={['#607cb1ff', '#dbb3ccff']}
-        style={styles.card}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        >
-        
-        <Text style={styles.day}>{day.date.split(' ')[0]}</Text>
-        <Text style={styles.date}>{day.date.split(' ').slice(1).join(' ')}</Text>
+      colors={['#607cb1ff', '#dbb3ccff']}
+      style={styles.card}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    >
+      <Text style={styles.day}>{day.date.split(' ')[0]}</Text>
+      <Text style={styles.date}>{day.date.split(' ').slice(1).join(' ')}</Text>
 
-        {/* SCHEDULE */}
-        <Text style={styles.section}>SCHEDULE</Text>
-        {day.schedule.length === 0 ? (
-            <View style={styles.itemCard}>
-            <Text style={styles.empty}>No events today.</Text>
-            </View>
-        ) : (
-            day.schedule.map((ev, idx) => (
-            <View style={styles.itemCard} key={idx}>
-                <View style={styles.eventAccent} />
-                <Text style={styles.itemTitle}>{ev.title}</Text>
-                <Text style={styles.itemTime}>{ev.time}</Text>
-            </View>
-            ))
-        )}
-
-        {/* WEATHER */}
-        <Text style={styles.section}>WEATHER</Text>
+      {/* SCHEDULE */}
+      <Text style={styles.section}>SCHEDULE</Text>
+      {day.schedule.length === 0 ? (
         <View style={styles.itemCard}>
-            {day.weather.iconUrl ? (
-            <Image source={{ uri: day.weather.iconUrl }} style={styles.weatherIcon} />
-            ) : null}
-            <View>
-            <Text style={styles.weatherTemp}>{day.weather.temp}</Text>
-            <Text style={styles.weatherDesc}>
-                {day.weather.city ? `${day.weather.city} - ` : ''}
-                {day.weather.desc}
-            </Text>
-            </View>
+          <Text style={styles.empty}>No events today.</Text>
         </View>
+      ) : (
+        day.schedule.map((ev, idx) => (
+          <View style={styles.itemCard} key={idx}>
+            <View style={styles.eventAccent} />
+            <Text style={styles.itemTitle}>{ev.title}</Text>
+            <Text style={styles.itemTime}>{ev.time}</Text>
+            <View style={{ flexDirection: 'row', marginLeft: 8 }}>
+              {onEditEvent && (
+                <TouchableOpacity
+                  onPress={() => onEditEvent(ev.originalEventIndex ?? idx)}
+                  style={{ marginHorizontal: 4 }}
+                >
+                  <Ionicons name="pencil" size={20} color="#faf884" />
+                </TouchableOpacity>
+              )}
+              {onDeleteEvent && (
+                <TouchableOpacity
+                  onPress={() =>
+                    Alert.alert(
+                      "Delete Event?",
+                      "Are you sure you want to delete this event?",
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Delete", style: "destructive", onPress: () => onDeleteEvent(ev.originalEventIndex ?? idx) }
+                      ]
+                    )
+                  }
+                >
+                  <Ionicons name="trash" size={20} color="#ff8383" />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        ))
+      )}
 
-        {/* ON THIS DAY */}
-        <Text style={styles.section}>ON THIS DAY</Text>
-        <View style={styles.itemCard}>
-            <Text style={styles.onThisDayText}>{day.onThisDay || 'No historical event'}</Text>
+      {/* WEATHER */}
+      <Text style={styles.section}>WEATHER</Text>
+      <View style={styles.itemCard}>
+        {day.weather.iconUrl ? (
+          <Image source={{ uri: day.weather.iconUrl }} style={styles.weatherIcon} />
+        ) : null}
+        <View>
+          <Text style={styles.weatherTemp}>{day.weather.temp}</Text>
+          <Text style={styles.weatherDesc}>
+            {day.weather.city ? `${day.weather.city} - ` : ''}
+            {day.weather.desc}
+          </Text>
         </View>
+      </View>
 
-        {/* ACTIONS */}
-        <Text style={styles.section}>ACTIONS</Text>
-        {day.actions.length === 0 ? (
-            <View style={styles.actionPill}>
-            <Text style={styles.empty}>No actions for today.</Text>
-            </View>
-        ) : (
-            day.actions.map(a => (
-            <View style={styles.actionPill} key={a.id}>
-                <Text style={styles.actionText}>{a.text}</Text>
-            </View>
-            ))
-        )}
+      {/* ON THIS DAY
+      <Text style={styles.section}>ON THIS DAY</Text>
+      <View style={styles.itemCard}>
+        <Text style={styles.onThisDayText}>{day.onThisDay || 'No historical event'}</Text>
+      </View> */}
+
+      {/* ACTIONS */}
+      <Text style={styles.section}>ACTIONS</Text>
+      {day.actions.length === 0 ? (
+        <View style={styles.actionPill}>
+          <Text style={styles.empty}>No actions for today.</Text>
+        </View>
+      ) : (
+        day.actions.map(a => (
+          <View style={styles.actionPill} key={a.id}>
+            <Text style={styles.actionText}>{a.text}</Text>
+          </View>
+        ))
+      )}
     </LinearGradient>
   );
 }
@@ -253,8 +287,7 @@ const styles = StyleSheet.create({
     padding: 24,
     margin: 8,
     width: '100%',
-    minHeight: 500,
-    backgroundColor: "#96547c",
+    minHeight: 600,
     shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 10, elevation: 6,
     justifyContent: 'flex-start',
   },
