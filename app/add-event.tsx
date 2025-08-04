@@ -1,2 +1,2 @@
-import AddEventScreen from '../components/AddEventScreen';
-export default AddEventScreen;
+// import AddEventScreen from '../components/AddEventScreen';
+// export default AddEventScreen;

@@ -1,24 +1,12 @@
-import AddEventScreen, { EventType } from '@components/AddEventScreen'; // Modal for add/edit
-import ScheduleScreen from '@components/ScheduleScreen'; // UI component
 import React, { useState } from 'react';
+import AddEventScreen, { EventType } from '../../components/AddEventScreen';
+import ScheduleScreen from '../../components/ScheduleScreen';
 
 import { Ionicons } from '@expo/vector-icons';
 import { Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function ScheduleTab() {
-  const [events, setEvents] = useState<EventType[]>([
-    {
-      id: '1',
-      title: 'Jaden bday party',
-      startDate: new Date(),
-      endDate: new Date(),
-      description: '',
-      location: '',
-      category: '',
-      reminder: '',
-    },
-  ]);
-
+  const [events, setEvents] = useState<EventType[]>([]);
   const [editingEvent, setEditingEvent] = useState<EventType | null>(null);
   const [isAddEventVisible, setAddEventVisible] = useState(false);
 
@@ -33,10 +21,8 @@ export default function ScheduleTab() {
 
   const handleSaveEvent = (event: EventType) => {
     if (editingEvent) {
-      // update existing
       setEvents(events.map((e) => (e.id === editingEvent.id ? { ...event, id: editingEvent.id } : e)));
     } else {
-      // add new
       setEvents([...events, { ...event, id: Date.now().toString() }]);
     }
     setAddEventVisible(false);
@@ -67,7 +53,6 @@ export default function ScheduleTab() {
         />
       </Modal>
 
-      {/* Floating Add Button */}
       <TouchableOpacity style={styles.fab} onPress={handleAddNew}>
         <Ionicons name="add" size={36} color="white" />
       </TouchableOpacity>
