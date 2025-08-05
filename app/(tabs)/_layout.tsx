@@ -14,7 +14,7 @@ export default function TabsLayout() {
 
           return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#2d6cdf',
+        tabBarActiveTintColor: '#2561cfff',
         tabBarInactiveTintColor: 'gray',
         headerShown: false,
         tabBarStyle: { paddingBottom: 5, height: 60 },
