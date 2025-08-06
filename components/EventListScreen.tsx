@@ -1,21 +1,22 @@
 import React, { useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import AddEventScreen, { EventType } from './AddEventScreen';
+import { Event } from '../context/EventContext';
+import AddEventScreen from './AddEventScreen';
 
 export default function EventListScreen() {
-  const [events, setEvents] = useState<EventType[]>([]);
-  const [editingEvent, setEditingEvent] = useState<EventType | null>(null);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
   // Add or update event
-  const handleSaveEvent = (event: EventType) => {
+  const handleSaveEvent = (event: Event) => {
     setEvents((prevEvents) => {
       // If editing, update existing
       if (editingEvent) {
@@ -31,7 +32,7 @@ export default function EventListScreen() {
   };
 
   // Delete event with confirmation
-  const handleDeleteEvent = (event: EventType) => {
+  const handleDeleteEvent = (event: Event) => {
     Alert.alert(
       'Delete Event',
       `Are you sure you want to delete "${event.title}"?`,
@@ -51,7 +52,7 @@ export default function EventListScreen() {
   };
 
   // Render event card
-  const renderEvent = ({ item }: { item: EventType }) => {
+  const renderEvent = ({ item }: { item: Event }) => {
     const startDateStr = item.startDate.toLocaleDateString();
     const startTimeStr = item.startDate.toLocaleTimeString([], {
       hour: '2-digit',

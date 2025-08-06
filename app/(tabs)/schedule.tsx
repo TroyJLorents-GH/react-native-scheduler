@@ -231,7 +231,7 @@ export default function ScheduleTab() {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: '#000000ff' }}>
       <AgendaScreen
         events={events}
       />

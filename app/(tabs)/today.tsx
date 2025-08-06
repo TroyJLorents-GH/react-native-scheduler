@@ -89,6 +89,7 @@ export default function TodayTab() {
             backgroundColor: '#f3f3f3',
             width: 320,
             shadowColor: '#000',
+            boxShadow: 'inset #7b7feaff -6px 0px 4px 5px',
             shadowOpacity: 0.2,
             shadowRadius: 4,
           }}
