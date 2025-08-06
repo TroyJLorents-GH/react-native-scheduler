@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function CalendarScreen() {
-  const [calendars, setCalendars] = useState([]);
-  const [selectedId, setSelectedId] = useState(null);
+  const [calendars, setCalendars] = useState<Calendar.Calendar[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -16,7 +16,7 @@ export default function CalendarScreen() {
     })();
   }, []);
 
-  const addSampleEvent = async (calendarId) => {
+  const addSampleEvent = async (calendarId: string) => {
     try {
       const now = new Date();
       const inOneHour = new Date(now.getTime() + 60 * 60 * 1000);
