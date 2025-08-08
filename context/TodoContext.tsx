@@ -63,6 +63,7 @@ import React, { createContext, useContext, useState } from 'react';
 export type Todo = {
   id: string;
   text: string;
+  listId: string; 
   done: boolean;
   createdAt: Date;
   priority?: 'low' | 'medium' | 'high';
@@ -80,14 +81,17 @@ export type Todo = {
   };
 };
 
-type TodoContextType = {
+export type TodoContextType = {
   todos: Todo[];
   addTodo: (todo: Todo) => void;
   toggleTodo: (id: string) => void;
   deleteTodo: (id: string) => void;
   addSubTask: (parentId: string, text: string) => void;
   toggleSubTask: (parentId: string, subTaskId: string) => void;
+  updateTodo: (id: string, patch: Partial<Todo>) => void;
 };
+
+
 
 const TodoContext = createContext<TodoContextType | undefined>(undefined);
 
@@ -117,6 +121,10 @@ export const TodoProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
   const deleteTodo = (id: string) =>
     setTodos(prev => prev.filter(t => t.id !== id));
+  // in TodoContext
+  const updateTodo = (id: string, patch: Partial<Todo>) =>
+  setTodos(prev => prev.map(t => (t.id === id ? { ...t, ...patch } : t)));
+
 
   // ---- SUBTASK SUPPORT ----
   const addSubTask = (parentId: string, text: string) =>
@@ -129,6 +137,7 @@ export const TodoProvider: React.FC<{ children: React.ReactNode }> = ({ children
               {
                 id: Date.now().toString(),
                 text,
+                listId: todo.listId, 
                 done: false,
                 createdAt: new Date(),
               },
@@ -150,7 +159,15 @@ export const TodoProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ));
 
   return (
-    <TodoContext.Provider value={{ todos, addTodo, toggleTodo, deleteTodo, addSubTask, toggleSubTask }}>
+    <TodoContext.Provider value={{ 
+        todos, 
+        addTodo, 
+        toggleTodo, 
+        deleteTodo, 
+        addSubTask, 
+        toggleSubTask,
+        updateTodo,
+         }}>
       {children}
     </TodoContext.Provider>
   );

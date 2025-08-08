@@ -38,14 +38,18 @@
 import { Slot } from 'expo-router';
 import React from 'react';
 import { EventProvider } from '../context/EventContext';
+import { ListProvider } from '../context/ListContext';
 import { TodoProvider } from '../context/TodoContext';
+
 
 export default function RootLayout() {
   return (
     <EventProvider>
-      <TodoProvider>
-        <Slot />
-      </TodoProvider>
+      <ListProvider>
+        <TodoProvider>
+          <Slot />
+        </TodoProvider>
+      </ListProvider>
     </EventProvider>
   );
 }
