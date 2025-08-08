@@ -980,6 +980,487 @@
 
 
 // components/TodoListScreen.tsx
+// import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+// import moment from 'moment';
+// import React, { useMemo, useState } from 'react';
+// import {
+//     Alert,
+//     FlatList,
+//     KeyboardAvoidingView,
+//     Modal,
+//     Platform,
+//     StyleSheet,
+//     Text,
+//     TextInput,
+//     TouchableOpacity,
+//     View,
+// } from 'react-native';
+// import DateTimePickerModal from 'react-native-modal-datetime-picker';
+// import { useTodoContext } from '../context/TodoContext';
+
+// type Props = { listId: string };
+
+// export default function TodoListScreen({ listId }: Props) {
+//   const {
+//     todos,
+//     addTodo,
+//     toggleTodo,
+//     deleteTodo,
+//     addSubTask,
+//     toggleSubTask,
+//     updateTodo, // make sure this exists in your context
+//   } = useTodoContext();
+
+//   const [input, setInput] = useState('');
+//   const [priority, setPriority] = useState<'high' | 'medium' | 'low'>('medium');
+//   const [favorite, setFavorite] = useState(false);
+//   const [category, setCategory] = useState('');
+//   const [expandedIds, setExpandedIds] = useState<string[]>([]);
+
+//   const [detailsOpen, setDetailsOpen] = useState(false);
+//   const [editingId, setEditingId] = useState<string | null>(null);
+//   const [detailsDueDate, setDetailsDueDate] = useState<Date | undefined>(undefined);
+//   const [detailsNotes, setDetailsNotes] = useState('');
+//   const [detailsPriority, setDetailsPriority] = useState<'high' | 'medium' | 'low'>('medium');
+//   const [detailsFavorite, setDetailsFavorite] = useState(false);
+
+//   const [pickerVisible, setPickerVisible] = useState(false);
+
+//   const listTodos = useMemo(
+//     () => todos.filter(t => t.listId === listId).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
+//     [todos, listId]
+//   );
+
+//   const isExpanded = (id: string) => expandedIds.includes(id);
+//   const toggleExpand = (id: string) =>
+//     setExpandedIds(prev => (prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]));
+
+//   const resetComposer = () => {
+//     setInput('');
+//     setPriority('medium');
+//     setFavorite(false);
+//     setCategory('');
+//   };
+
+//   const handleAdd = () => {
+//     if (!input.trim()) return;
+//     addTodo({
+//       id: Date.now().toString(),
+//       text: input.trim(),
+//       listId,
+//       done: false,
+//       createdAt: new Date(),
+//       priority,
+//       favorite,
+//       category: category.trim() ? category.trim() : undefined,
+//       // you can seed dueDate/notes here if you want
+//     });
+//     resetComposer();
+//   };
+
+//   const handleDelete = (id: string) => {
+//     Alert.alert('Delete To-Do', 'Are you sure?', [
+//       { text: 'Cancel', style: 'cancel' },
+//       { text: 'Delete', style: 'destructive', onPress: () => deleteTodo(id) },
+//     ]);
+//   };
+
+//   // --- Quick toolbar helpers ---
+//   const setDue = (date: Date) => {
+//     // create a quick todo with due date if user typed something, else do nothing
+//     if (!input.trim()) {
+//       setPickerVisible(false);
+//       return;
+//     }
+//     addTodo({
+//       id: Date.now().toString(),
+//       text: input.trim(),
+//       listId,
+//       done: false,
+//       createdAt: new Date(),
+//       priority,
+//       favorite,
+//       category: category.trim() ? category.trim() : undefined,
+//       dueDate: date,
+//     });
+//     resetComposer();
+//     setPickerVisible(false);
+//   };
+
+//   const pickToday = () => setDue(moment().endOf('day').toDate());
+//   const pickTomorrow = () => setDue(moment().add(1, 'day').endOf('day').toDate());
+//   const pickWeekend = () => setDue(moment().day(6).endOf('day').toDate()); // Sat
+
+//   // --- Details modal open/populate ---
+//   const openDetailsFor = (todoId: string) => {
+//     const t = todos.find(x => x.id === todoId);
+//     if (!t) return;
+//     setEditingId(t.id);
+//     setDetailsDueDate(t.dueDate);
+//     setDetailsNotes(t.notes || '');
+//     setDetailsPriority(t.priority || 'medium');
+//     setDetailsFavorite(!!t.favorite);
+//     setDetailsOpen(true);
+//   };
+
+//   const saveDetails = () => {
+//     if (!editingId) return;
+//     updateTodo(editingId, {
+//       dueDate: detailsDueDate,
+//       notes: detailsNotes || undefined,
+//       priority: detailsPriority,
+//       favorite: detailsFavorite,
+//     });
+//     setDetailsOpen(false);
+//   };
+
+//   // --- Subtask adder inside details ---
+//   const addSubFromDetails = (text: string) => {
+//     if (!editingId || !text.trim()) return;
+//     addSubTask(editingId, text.trim());
+//   };
+
+//   return (
+//     <KeyboardAvoidingView
+//       style={{ flex: 1, backgroundColor: '#f5f8ff' }}
+//       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+//     >
+//       {/* Header / Title could be your list name if you pass it in */}
+//       <View style={{ padding: 18 }}>
+//         <Text style={styles.header}>To-Do</Text>
+
+//         {/* Composer + Toolbar */}
+//         <View style={styles.inputRow}>
+//           <TextInput
+//             style={styles.input}
+//             placeholder="Add new to-do"
+//             value={input}
+//             onChangeText={setInput}
+//             onSubmitEditing={handleAdd}
+//             returnKeyType="done"
+//           />
+//           <TouchableOpacity onPress={() => setFavorite(f => !f)}>
+//             <Ionicons name={favorite ? 'star' : 'star-outline'} size={26} color={favorite ? '#ffd700' : '#aaa'} />
+//           </TouchableOpacity>
+//           <View style={styles.priorityRow}>
+//             {(['high', 'medium', 'low'] as const).map(level => (
+//               <TouchableOpacity
+//                 key={level}
+//                 style={[
+//                   styles.priPill,
+//                   { backgroundColor: priority === level ? '#556de8' : '#e0e5f2' },
+//                 ]}
+//                 onPress={() => setPriority(level)}
+//               >
+//                 <Text style={{ color: priority === level ? 'white' : '#556de8', fontWeight: 'bold' }}>
+//                   {level[0].toUpperCase()}
+//                 </Text>
+//               </TouchableOpacity>
+//             ))}
+//           </View>
+//           <TextInput
+//             style={[styles.input, { width: 90, marginLeft: 5 }]}
+//             placeholder="Category"
+//             value={category}
+//             onChangeText={setCategory}
+//           />
+//           <TouchableOpacity onPress={handleAdd} style={styles.addBtn}>
+//             <Ionicons name="add-circle" size={36} color="#67c99a" />
+//           </TouchableOpacity>
+//         </View>
+
+//         {/* Keyboard toolbar (quick actions) */}
+//         <View style={styles.toolbar}>
+//           <ToolbarButton icon="calendar" label="Today" onPress={pickToday} />
+//           <ToolbarButton icon="calendar" label="Tomorrow" onPress={pickTomorrow} />
+//           <ToolbarButton icon="calendar" label="Weekend" onPress={pickWeekend} />
+//           <ToolbarButton icon="calendar-clock" label="Date & Time" onPress={() => setPickerVisible(true)} />
+//           <ToolbarButton icon="tag" label="Tag" onPress={() => category || setCategory('tag')} />
+//           <ToolbarButton icon="flag" label="Flag" onPress={() => setPriority('high')} />
+//           <ToolbarButton icon="camera" label="Photo" onPress={() => Alert.alert('Photo', 'Not implemented yet')} />
+//         </View>
+//       </View>
+
+//       {/* List */}
+//       <FlatList
+//         data={listTodos}
+//         keyExtractor={item => item.id}
+//         contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 100 }}
+//         renderItem={({ item }) => (
+//           <View style={styles.todoRow}>
+//             {item.favorite && <Ionicons name="star" size={20} color="#ffd700" style={{ marginRight: 4 }} />}
+//             <View
+//               style={[
+//                 styles.priorityDot,
+//                 {
+//                   backgroundColor:
+//                     item.priority === 'high' ? '#ff8882' : item.priority === 'medium' ? '#ffdf6d' : '#9ad0f5',
+//                 },
+//               ]}
+//             />
+//             <TouchableOpacity onPress={() => toggleTodo(item.id)}>
+//               <Ionicons
+//                 name={item.done ? 'checkmark-circle' : 'ellipse-outline'}
+//                 size={24}
+//                 color={item.done ? '#67c99a' : '#aaa'}
+//                 style={{ marginRight: 9 }}
+//               />
+//             </TouchableOpacity>
+
+//             <TouchableOpacity style={{ flex: 1 }} onPress={() => openDetailsFor(item.id)}>
+//               <Text style={[styles.todoText, item.done && styles.doneText]} numberOfLines={2}>
+//                 {item.text}
+//               </Text>
+//               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+//                 {item.dueDate && (
+//                   <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 10 }}>
+//                     <Ionicons name="calendar-outline" size={16} color="#9ad0f5" />
+//                     <Text style={{ fontSize: 12, color: '#3d61b2', marginLeft: 4 }}>
+//                       {moment(item.dueDate).format('MMM D, h:mm A')}
+//                     </Text>
+//                   </View>
+//                 )}
+//                 {item.category && (
+//                   <View style={styles.tagPill}>
+//                     <Text style={styles.tagText}>{item.category}</Text>
+//                   </View>
+//                 )}
+//               </View>
+//             </TouchableOpacity>
+
+//             <TouchableOpacity onPress={() => toggleExpand(item.id)} style={{ marginLeft: 6 }}>
+//               <Ionicons name={isExpanded(item.id) ? 'chevron-up' : 'chevron-down'} size={22} color="#67c99a" />
+//             </TouchableOpacity>
+
+//             {/* Expandable subtasks */}
+//             {isExpanded(item.id) && (
+//               <View style={styles.subTasksContainer}>
+//                 {item.subTasks?.map(sub => (
+//                   <TouchableOpacity
+//                     key={sub.id}
+//                     style={styles.subTaskRow}
+//                     onPress={() => toggleSubTask(item.id, sub.id)}
+//                   >
+//                     <Ionicons
+//                       name={sub.done ? 'checkmark-circle' : 'ellipse-outline'}
+//                       size={20}
+//                       color={sub.done ? '#67c99a' : '#bbb'}
+//                       style={{ marginRight: 7 }}
+//                     />
+//                     <Text
+//                       style={[
+//                         styles.subTaskText,
+//                         sub.done && { textDecorationLine: 'line-through', color: '#aaa' },
+//                       ]}
+//                     >
+//                       {sub.text}
+//                     </Text>
+//                   </TouchableOpacity>
+//                 ))}
+//                 <SubtaskInput onAdd={(txt) => addSubFromDetails(txt)} />
+//               </View>
+//             )}
+//           </View>
+//         )}
+//       />
+
+//       {/* Date & Time picker for composer quick action */}
+//       <DateTimePickerModal
+//         isVisible={pickerVisible}
+//         mode="datetime"
+//         date={new Date()}
+//         onConfirm={(date) => setDue(date)}
+//         onCancel={() => setPickerVisible(false)}
+//       />
+
+//       {/* Details modal */}
+//       <Modal visible={detailsOpen} animationType="slide" onRequestClose={() => setDetailsOpen(false)}>
+//         <View style={{ flex: 1, padding: 45, backgroundColor: '#fff' }}>
+//           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+//             <TouchableOpacity onPress={() => setDetailsOpen(false)}>
+//               <Text style={{ color: '#418cff', fontSize: 16 }}>Cancel</Text>
+//             </TouchableOpacity>
+//             <Text style={{ fontWeight: 'bold', fontSize: 18 }}>Details</Text>
+//             <TouchableOpacity onPress={saveDetails}>
+//               <Text style={{ color: '#418cff', fontSize: 16 }}>Done</Text>
+//             </TouchableOpacity>
+//           </View>
+
+//           <Text style={styles.modalLabel}>Date & Time</Text>
+//           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+//             <TouchableOpacity
+//               style={styles.dateBtn}
+//               onPress={() =>
+//                 setDetailsDueDate(detailsDueDate ? undefined : new Date())
+//               }
+//             >
+//               <Ionicons name="calendar" size={18} color="#3d61b2" />
+//               <Text style={styles.dateBtnText}>
+//                 {detailsDueDate ? moment(detailsDueDate).format('MMM D, h:mm A') : 'Set'}
+//               </Text>
+//             </TouchableOpacity>
+//             {detailsDueDate && (
+//               <TouchableOpacity style={[styles.dateBtn, { marginLeft: 8 }]} onPress={() => setDetailsDueDate(undefined)}>
+//                 <MaterialCommunityIcons name="close-circle-outline" size={18} color="#b84a4a" />
+//                 <Text style={[styles.dateBtnText, { color: '#b84a4a' }]}>Clear</Text>
+//               </TouchableOpacity>
+//             )}
+//           </View>
+
+//           <Text style={styles.modalLabel}>Priority</Text>
+//           <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+//             {(['high', 'medium', 'low'] as const).map(p => (
+//               <TouchableOpacity
+//                 key={p}
+//                 style={[
+//                   styles.priPill,
+//                   { backgroundColor: detailsPriority === p ? '#556de8' : '#e0e5f2', marginRight: 8 },
+//                 ]}
+//                 onPress={() => setDetailsPriority(p)}
+//               >
+//                 <Text style={{ color: detailsPriority === p ? '#fff' : '#556de8', fontWeight: 'bold' }}>
+//                   {p.toUpperCase()}
+//                 </Text>
+//               </TouchableOpacity>
+//             ))}
+//           </View>
+
+//           <Text style={styles.modalLabel}>Favorite</Text>
+//           <TouchableOpacity
+//             style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}
+//             onPress={() => setDetailsFavorite(v => !v)}
+//           >
+//             <Ionicons name={detailsFavorite ? 'star' : 'star-outline'} size={24} color={detailsFavorite ? '#ffd700' : '#aaa'} />
+//             <Text style={{ marginLeft: 8 }}>{detailsFavorite ? 'Favorited' : 'Not favorited'}</Text>
+//           </TouchableOpacity>
+
+//           <Text style={styles.modalLabel}>Notes</Text>
+//           <TextInput
+//             style={styles.notesInput}
+//             placeholder="Notes…"
+//             value={detailsNotes}
+//             onChangeText={setDetailsNotes}
+//             multiline
+//           />
+
+//           <Text style={styles.modalLabel}>Subtasks</Text>
+//           {editingId && (
+//             <SubtaskInput onAdd={(txt) => addSubFromDetails(txt)} />
+//           )}
+//         </View>
+//       </Modal>
+//     </KeyboardAvoidingView>
+//   );
+// }
+
+// // ---------- small components ----------
+// function ToolbarButton({
+//   icon,
+//   label,
+//   onPress,
+// }: {
+//   icon: keyof typeof MaterialCommunityIcons.glyphMap;
+//   label: string;
+//   onPress: () => void;
+// }) {
+//   return (
+//     <TouchableOpacity style={styles.toolbarBtn} onPress={onPress}>
+//       <MaterialCommunityIcons name={icon} size={20} color="#3d61b2" />
+//       <Text style={styles.toolbarLabel}>{label}</Text>
+//     </TouchableOpacity>
+//   );
+// }
+
+// function SubtaskInput({ onAdd }: { onAdd: (text: string) => void }) {
+//   const [text, setText] = useState('');
+//   const submit = () => {
+//     if (!text.trim()) return;
+//     onAdd(text.trim());
+//     setText('');
+//   };
+//   return (
+//     <View style={styles.subTaskInputRow}>
+//       <TextInput
+//         style={styles.subTaskInput}
+//         placeholder="Add subtask"
+//         value={text}
+//         onChangeText={setText}
+//         onSubmitEditing={submit}
+//         returnKeyType="done"
+//       />
+//       <TouchableOpacity onPress={submit}>
+//         <Ionicons name="add-circle-outline" size={22} color="#67c99a" />
+//       </TouchableOpacity>
+//     </View>
+//   );
+// }
+
+// // ---------- styles ----------
+// const styles = StyleSheet.create({
+//   header: { fontSize: 22, fontWeight: 'bold', color: '#556de8' },
+//   inputRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14 },
+//   input: {
+//     backgroundColor: '#fff', borderRadius: 14, paddingVertical: 10, paddingHorizontal: 12,
+//     fontSize: 16, borderWidth: 1, borderColor: '#e5e6ef', marginRight: 4, minWidth: 110, flex: 1,
+//   },
+//   addBtn: { marginLeft: 5 },
+//   priorityRow: { flexDirection: 'row', alignItems: 'center', marginLeft: 5 },
+//   priPill: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8 },
+
+//   toolbar: {
+//     flexDirection: 'row', flexWrap: 'wrap', marginTop: 10, backgroundColor: '#eef3ff',
+//     borderRadius: 12, padding: 8,
+//   },
+//   toolbarBtn: {
+//     flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 10,
+//     backgroundColor: '#ffffff', borderRadius: 10, marginRight: 8, marginBottom: 8,
+//   },
+//   toolbarLabel: { marginLeft: 6, color: '#3d61b2', fontWeight: '600' },
+
+//   todoRow: {
+//     backgroundColor: '#fff', marginBottom: 12, paddingVertical: 12, paddingHorizontal: 18,
+//     borderRadius: 14, shadowColor: '#222', shadowOpacity: 0.07, shadowRadius: 6, elevation: 2, flexWrap: 'wrap',
+//     flexDirection: 'row', alignItems: 'center',
+//   },
+//   todoText: { fontSize: 16, color: '#222', flex: 1 },
+//   doneText: { color: '#aaa', textDecorationLine: 'line-through' },
+
+//   priorityDot: { borderRadius: 6, width: 12, height: 12, marginRight: 6 },
+
+//   subTasksContainer: {
+//     marginTop: 7, marginLeft: 36, borderLeftWidth: 2, borderColor: '#e0e5f2', paddingLeft: 11, width: '100%',
+//   },
+//   subTaskRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+//   subTaskText: { fontSize: 15, color: '#555' },
+//   subTaskInputRow: { flexDirection: 'row', alignItems: 'center', marginTop: 7, marginBottom: 2 },
+//   subTaskInput: {
+//     backgroundColor: '#f4f4f8', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10,
+//     fontSize: 15, borderWidth: 1, borderColor: '#e0e5f2', marginRight: 6, flex: 1,
+//   },
+
+//   modalLabel: { fontWeight: 'bold', color: '#2d3748', marginTop: 14, marginBottom: 6 },
+//   dateBtn: {
+//     flexDirection: 'row', alignItems: 'center', backgroundColor: '#eef3ff',
+//     paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8,
+//   },
+//   dateBtnText: { marginLeft: 6, color: '#3d61b2', fontWeight: '600' },
+//   notesInput: {
+//     backgroundColor: '#fafafa', borderRadius: 10, padding: 10, minHeight: 90, textAlignVertical: 'top',
+//     borderWidth: 1, borderColor: '#eee',
+//   },
+//   tagPill: {
+//   backgroundColor: '#e9f4fa',
+//   borderRadius: 8,
+//   paddingHorizontal: 8,
+//   paddingVertical: 2,
+// },
+// tagText: { color: '#3d61b2', fontSize: 12, fontWeight: '600' },
+// });
+
+
+
+
+
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import moment from 'moment';
 import React, { useMemo, useState } from 'react';
@@ -987,8 +1468,8 @@ import {
     Alert,
     FlatList,
     KeyboardAvoidingView,
-    Modal,
     Platform,
+    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -1008,7 +1489,7 @@ export default function TodoListScreen({ listId }: Props) {
     deleteTodo,
     addSubTask,
     toggleSubTask,
-    updateTodo, // make sure this exists in your context
+    updateTodo,
   } = useTodoContext();
 
   const [input, setInput] = useState('');
@@ -1016,14 +1497,6 @@ export default function TodoListScreen({ listId }: Props) {
   const [favorite, setFavorite] = useState(false);
   const [category, setCategory] = useState('');
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
-
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [detailsDueDate, setDetailsDueDate] = useState<Date | undefined>(undefined);
-  const [detailsNotes, setDetailsNotes] = useState('');
-  const [detailsPriority, setDetailsPriority] = useState<'high' | 'medium' | 'low'>('medium');
-  const [detailsFavorite, setDetailsFavorite] = useState(false);
-
   const [pickerVisible, setPickerVisible] = useState(false);
 
   const listTodos = useMemo(
@@ -1053,21 +1526,11 @@ export default function TodoListScreen({ listId }: Props) {
       priority,
       favorite,
       category: category.trim() ? category.trim() : undefined,
-      // you can seed dueDate/notes here if you want
     });
     resetComposer();
   };
 
-  const handleDelete = (id: string) => {
-    Alert.alert('Delete To-Do', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteTodo(id) },
-    ]);
-  };
-
-  // --- Quick toolbar helpers ---
   const setDue = (date: Date) => {
-    // create a quick todo with due date if user typed something, else do nothing
     if (!input.trim()) {
       setPickerVisible(false);
       return;
@@ -1091,180 +1554,173 @@ export default function TodoListScreen({ listId }: Props) {
   const pickTomorrow = () => setDue(moment().add(1, 'day').endOf('day').toDate());
   const pickWeekend = () => setDue(moment().day(6).endOf('day').toDate()); // Sat
 
-  // --- Details modal open/populate ---
-  const openDetailsFor = (todoId: string) => {
-    const t = todos.find(x => x.id === todoId);
-    if (!t) return;
-    setEditingId(t.id);
-    setDetailsDueDate(t.dueDate);
-    setDetailsNotes(t.notes || '');
-    setDetailsPriority(t.priority || 'medium');
-    setDetailsFavorite(!!t.favorite);
-    setDetailsOpen(true);
-  };
-
-  const saveDetails = () => {
-    if (!editingId) return;
-    updateTodo(editingId, {
-      dueDate: detailsDueDate,
-      notes: detailsNotes || undefined,
-      priority: detailsPriority,
-      favorite: detailsFavorite,
-    });
-    setDetailsOpen(false);
-  };
-
-  // --- Subtask adder inside details ---
-  const addSubFromDetails = (text: string) => {
-    if (!editingId || !text.trim()) return;
-    addSubTask(editingId, text.trim());
-  };
-
+  // ---- page ----
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: '#f5f8ff' }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={90}
     >
-      {/* Header / Title could be your list name if you pass it in */}
-      <View style={{ padding: 18 }}>
-        <Text style={styles.header}>To-Do</Text>
-
-        {/* Composer + Toolbar */}
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            placeholder="Add new to-do"
-            value={input}
-            onChangeText={setInput}
-            onSubmitEditing={handleAdd}
-            returnKeyType="done"
-          />
-          <TouchableOpacity onPress={() => setFavorite(f => !f)}>
-            <Ionicons name={favorite ? 'star' : 'star-outline'} size={26} color={favorite ? '#ffd700' : '#aaa'} />
-          </TouchableOpacity>
-          <View style={styles.priorityRow}>
-            {(['high', 'medium', 'low'] as const).map(level => (
-              <TouchableOpacity
-                key={level}
-                style={[
-                  styles.priPill,
-                  { backgroundColor: priority === level ? '#556de8' : '#e0e5f2' },
-                ]}
-                onPress={() => setPriority(level)}
-              >
-                <Text style={{ color: priority === level ? 'white' : '#556de8', fontWeight: 'bold' }}>
-                  {level[0].toUpperCase()}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <TextInput
-            style={[styles.input, { width: 90, marginLeft: 5 }]}
-            placeholder="Category"
-            value={category}
-            onChangeText={setCategory}
-          />
-          <TouchableOpacity onPress={handleAdd} style={styles.addBtn}>
-            <Ionicons name="add-circle" size={36} color="#67c99a" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Keyboard toolbar (quick actions) */}
-        <View style={styles.toolbar}>
-          <ToolbarButton icon="calendar" label="Today" onPress={pickToday} />
-          <ToolbarButton icon="calendar" label="Tomorrow" onPress={pickTomorrow} />
-          <ToolbarButton icon="calendar" label="Weekend" onPress={pickWeekend} />
-          <ToolbarButton icon="calendar-clock" label="Date & Time" onPress={() => setPickerVisible(true)} />
-          <ToolbarButton icon="tag" label="Tag" onPress={() => category || setCategory('tag')} />
-          <ToolbarButton icon="flag" label="Flag" onPress={() => setPriority('high')} />
-          <ToolbarButton icon="camera" label="Photo" onPress={() => Alert.alert('Photo', 'Not implemented yet')} />
-        </View>
-      </View>
-
-      {/* List */}
+      {/* Scrollable list area */}
       <FlatList
         data={listTodos}
         keyExtractor={item => item.id}
-        contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 100 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 140 }}
         renderItem={({ item }) => (
-          <View style={styles.todoRow}>
-            {item.favorite && <Ionicons name="star" size={20} color="#ffd700" style={{ marginRight: 4 }} />}
-            <View
-              style={[
-                styles.priorityDot,
-                {
-                  backgroundColor:
-                    item.priority === 'high' ? '#ff8882' : item.priority === 'medium' ? '#ffdf6d' : '#9ad0f5',
-                },
-              ]}
-            />
-            <TouchableOpacity onPress={() => toggleTodo(item.id)}>
-              <Ionicons
-                name={item.done ? 'checkmark-circle' : 'ellipse-outline'}
-                size={24}
-                color={item.done ? '#67c99a' : '#aaa'}
-                style={{ marginRight: 9 }}
+          <View style={styles.todoCard}>
+            <View style={styles.titleRow}>
+              {item.favorite && <Ionicons name="star" size={20} color="#ffd700" style={{ marginRight: 6 }} />}
+              <View
+                style={[
+                  styles.priorityDot,
+                  {
+                    backgroundColor:
+                      item.priority === 'high' ? '#ff8882' : item.priority === 'medium' ? '#ffdf6d' : '#9ad0f5',
+                  },
+                ]}
               />
-            </TouchableOpacity>
+              <TouchableOpacity onPress={() => toggleTodo(item.id)}>
+                <Ionicons
+                  name={item.done ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={24}
+                  color={item.done ? '#67c99a' : '#aaa'}
+                  style={{ marginRight: 9 }}
+                />
+              </TouchableOpacity>
 
-            <TouchableOpacity style={{ flex: 1 }} onPress={() => openDetailsFor(item.id)}>
-              <Text style={[styles.todoText, item.done && styles.doneText]} numberOfLines={2}>
-                {item.text}
-              </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                {item.dueDate && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 10 }}>
-                    <Ionicons name="calendar-outline" size={16} color="#9ad0f5" />
-                    <Text style={{ fontSize: 12, color: '#3d61b2', marginLeft: 4 }}>
-                      {moment(item.dueDate).format('MMM D, h:mm A')}
-                    </Text>
-                  </View>
-                )}
-                {item.category && (
-                  <View style={styles.tagPill}>
-                    <Text style={styles.tagText}>{item.category}</Text>
-                  </View>
-                )}
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.todoText, item.done && styles.doneText]} numberOfLines={2}>
+                  {item.text}
+                </Text>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+                  {item.dueDate && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 10 }}>
+                      <Ionicons name="calendar-outline" size={16} color="#9ad0f5" />
+                      <Text style={{ fontSize: 12, color: '#3d61b2', marginLeft: 4 }}>
+                        {moment(item.dueDate).format('MMM D, h:mm A')}
+                      </Text>
+                    </View>
+                  )}
+                  {item.category && (
+                    <View style={styles.tagPill}>
+                      <Text style={styles.tagText}>{item.category}</Text>
+                    </View>
+                  )}
+                </View>
               </View>
-            </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => toggleExpand(item.id)} style={{ marginLeft: 6 }}>
-              <Ionicons name={isExpanded(item.id) ? 'chevron-up' : 'chevron-down'} size={22} color="#67c99a" />
-            </TouchableOpacity>
+              <TouchableOpacity onPress={() => toggleExpand(item.id)} style={{ marginLeft: 6 }}>
+                <Ionicons name={isExpanded(item.id) ? 'chevron-up' : 'chevron-down'} size={22} color="#67c99a" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() =>
+                  Alert.alert('Delete To‑Do', 'Are you sure?', [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Delete', style: 'destructive', onPress: () => deleteTodo(item.id) },
+                  ])
+                }
+                style={{ marginLeft: 8 }}
+              >
+                <MaterialCommunityIcons name="trash-can-outline" size={20} color="#b84a4a" />
+              </TouchableOpacity>
+            </View>
 
             {/* Expandable subtasks */}
             {isExpanded(item.id) && (
               <View style={styles.subTasksContainer}>
-                {item.subTasks?.map(sub => (
-                  <TouchableOpacity
-                    key={sub.id}
-                    style={styles.subTaskRow}
-                    onPress={() => toggleSubTask(item.id, sub.id)}
-                  >
-                    <Ionicons
-                      name={sub.done ? 'checkmark-circle' : 'ellipse-outline'}
-                      size={20}
-                      color={sub.done ? '#67c99a' : '#bbb'}
-                      style={{ marginRight: 7 }}
-                    />
-                    <Text
-                      style={[
-                        styles.subTaskText,
-                        sub.done && { textDecorationLine: 'line-through', color: '#aaa' },
-                      ]}
+                <ScrollView style={styles.subTasksList} nestedScrollEnabled>
+                  {item.subTasks?.map(sub => (
+                    <TouchableOpacity
+                      key={sub.id}
+                      style={styles.subTaskRow}
+                      onPress={() => toggleSubTask(item.id, sub.id)}
                     >
-                      {sub.text}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-                <SubtaskInput onAdd={(txt) => addSubFromDetails(txt)} />
+                      <Ionicons
+                        name={sub.done ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={20}
+                        color={sub.done ? '#67c99a' : '#bbb'}
+                        style={{ marginRight: 7 }}
+                      />
+                      <Text
+                        style={[
+                          styles.subTaskText,
+                          sub.done && { textDecorationLine: 'line-through', color: '#aaa' },
+                        ]}
+                      >
+                        {sub.text}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                <SubtaskInput
+                  onAdd={(txt) => {
+                    addSubTask(item.id, txt);
+                    // keep expanded after adding
+                    if (!isExpanded(item.id)) toggleExpand(item.id);
+                  }}
+                />
               </View>
             )}
           </View>
         )}
       />
 
-      {/* Date & Time picker for composer quick action */}
+      {/* Sticky composer */}
+      <View style={styles.composer}>
+        <TextInput
+          style={styles.input}
+          placeholder="Add new to‑do"
+          value={input}
+          onChangeText={setInput}
+          onSubmitEditing={handleAdd}
+          returnKeyType="done"
+        />
+
+        <TouchableOpacity onPress={() => setFavorite(f => !f)}>
+          <Ionicons name={favorite ? 'star' : 'star-outline'} size={26} color={favorite ? '#ffd700' : '#aaa'} />
+        </TouchableOpacity>
+
+        <View style={styles.priorityRow}>
+          {(['high', 'medium', 'low'] as const).map(level => (
+            <TouchableOpacity
+              key={level}
+              style={[styles.priPill, { backgroundColor: priority === level ? '#556de8' : '#e0e5f2' }]}
+              onPress={() => setPriority(level)}
+            >
+              <Text style={{ color: priority === level ? 'white' : '#556de8', fontWeight: 'bold' }}>
+                {level[0].toUpperCase()}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <TextInput
+          style={[styles.input, { width: 100 }]}
+          placeholder="Category"
+          value={category}
+          onChangeText={setCategory}
+        />
+
+        <TouchableOpacity onPress={handleAdd} style={{ marginLeft: 6 }}>
+          <Ionicons name="add-circle" size={36} color="#67c99a" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Quick actions row */}
+      <View style={styles.toolbar}>
+        <ToolbarButton icon="calendar" label="Today" onPress={pickToday} />
+        <ToolbarButton icon="calendar" label="Tomorrow" onPress={pickTomorrow} />
+        <ToolbarButton icon="calendar" label="Weekend" onPress={pickWeekend} />
+        <ToolbarButton icon="calendar-clock" label="Date & Time" onPress={() => setPickerVisible(true)} />
+        <ToolbarButton icon="tag" label="Tag" onPress={() => category || setCategory('tag')} />
+        <ToolbarButton icon="flag" label="Flag" onPress={() => setPriority('high')} />
+        <ToolbarButton icon="camera" label="Photo" onPress={() => Alert.alert('Photo', 'Not implemented yet')} />
+      </View>
+
+      {/* Date picker */}
       <DateTimePickerModal
         isVisible={pickerVisible}
         mode="datetime"
@@ -1272,92 +1728,12 @@ export default function TodoListScreen({ listId }: Props) {
         onConfirm={(date) => setDue(date)}
         onCancel={() => setPickerVisible(false)}
       />
-
-      {/* Details modal */}
-      <Modal visible={detailsOpen} animationType="slide" onRequestClose={() => setDetailsOpen(false)}>
-        <View style={{ flex: 1, padding: 18, backgroundColor: '#fff' }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
-            <TouchableOpacity onPress={() => setDetailsOpen(false)}>
-              <Text style={{ color: '#418cff', fontSize: 16 }}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={{ fontWeight: 'bold', fontSize: 18 }}>Details</Text>
-            <TouchableOpacity onPress={saveDetails}>
-              <Text style={{ color: '#418cff', fontSize: 16 }}>Done</Text>
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.modalLabel}>Date & Time</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-            <TouchableOpacity
-              style={styles.dateBtn}
-              onPress={() =>
-                setDetailsDueDate(detailsDueDate ? undefined : new Date())
-              }
-            >
-              <Ionicons name="calendar" size={18} color="#3d61b2" />
-              <Text style={styles.dateBtnText}>
-                {detailsDueDate ? moment(detailsDueDate).format('MMM D, h:mm A') : 'Set'}
-              </Text>
-            </TouchableOpacity>
-            {detailsDueDate && (
-              <TouchableOpacity style={[styles.dateBtn, { marginLeft: 8 }]} onPress={() => setDetailsDueDate(undefined)}>
-                <MaterialCommunityIcons name="close-circle-outline" size={18} color="#b84a4a" />
-                <Text style={[styles.dateBtnText, { color: '#b84a4a' }]}>Clear</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <Text style={styles.modalLabel}>Priority</Text>
-          <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-            {(['high', 'medium', 'low'] as const).map(p => (
-              <TouchableOpacity
-                key={p}
-                style={[
-                  styles.priPill,
-                  { backgroundColor: detailsPriority === p ? '#556de8' : '#e0e5f2', marginRight: 8 },
-                ]}
-                onPress={() => setDetailsPriority(p)}
-              >
-                <Text style={{ color: detailsPriority === p ? '#fff' : '#556de8', fontWeight: 'bold' }}>
-                  {p.toUpperCase()}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.modalLabel}>Favorite</Text>
-          <TouchableOpacity
-            style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}
-            onPress={() => setDetailsFavorite(v => !v)}
-          >
-            <Ionicons name={detailsFavorite ? 'star' : 'star-outline'} size={24} color={detailsFavorite ? '#ffd700' : '#aaa'} />
-            <Text style={{ marginLeft: 8 }}>{detailsFavorite ? 'Favorited' : 'Not favorited'}</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.modalLabel}>Notes</Text>
-          <TextInput
-            style={styles.notesInput}
-            placeholder="Notes…"
-            value={detailsNotes}
-            onChangeText={setDetailsNotes}
-            multiline
-          />
-
-          <Text style={styles.modalLabel}>Subtasks</Text>
-          {editingId && (
-            <SubtaskInput onAdd={(txt) => addSubFromDetails(txt)} />
-          )}
-        </View>
-      </Modal>
     </KeyboardAvoidingView>
   );
 }
 
-// ---------- small components ----------
 function ToolbarButton({
-  icon,
-  label,
-  onPress,
+  icon, label, onPress,
 }: {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   label: string;
@@ -1365,7 +1741,7 @@ function ToolbarButton({
 }) {
   return (
     <TouchableOpacity style={styles.toolbarBtn} onPress={onPress}>
-      <MaterialCommunityIcons name={icon} size={20} color="#3d61b2" />
+      <MaterialCommunityIcons name={icon} size={20} />
       <Text style={styles.toolbarLabel}>{label}</Text>
     </TouchableOpacity>
   );
@@ -1395,64 +1771,98 @@ function SubtaskInput({ onAdd }: { onAdd: (text: string) => void }) {
   );
 }
 
-// ---------- styles ----------
 const styles = StyleSheet.create({
-  header: { fontSize: 22, fontWeight: 'bold', color: '#556de8' },
-  inputRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14 },
-  input: {
-    backgroundColor: '#fff', borderRadius: 14, paddingVertical: 10, paddingHorizontal: 12,
-    fontSize: 16, borderWidth: 1, borderColor: '#e5e6ef', marginRight: 4, minWidth: 110, flex: 1,
+  // cards
+  todoCard: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    shadowColor: '#222',
+    shadowOpacity: 0.07,
+    shadowRadius: 6,
+    elevation: 2,
+    overflow: 'hidden', // important on iOS
   },
-  addBtn: { marginLeft: 5 },
-  priorityRow: { flexDirection: 'row', alignItems: 'center', marginLeft: 5 },
-  priPill: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8 },
-
-  toolbar: {
-    flexDirection: 'row', flexWrap: 'wrap', marginTop: 10, backgroundColor: '#eef3ff',
-    borderRadius: 12, padding: 8,
-  },
-  toolbarBtn: {
-    flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 10,
-    backgroundColor: '#ffffff', borderRadius: 10, marginRight: 8, marginBottom: 8,
-  },
-  toolbarLabel: { marginLeft: 6, color: '#3d61b2', fontWeight: '600' },
-
-  todoRow: {
-    backgroundColor: '#fff', marginBottom: 12, paddingVertical: 12, paddingHorizontal: 18,
-    borderRadius: 14, shadowColor: '#222', shadowOpacity: 0.07, shadowRadius: 6, elevation: 2, flexWrap: 'wrap',
-    flexDirection: 'row', alignItems: 'center',
-  },
+  titleRow: { flexDirection: 'row', alignItems: 'center' },
   todoText: { fontSize: 16, color: '#222', flex: 1 },
   doneText: { color: '#aaa', textDecorationLine: 'line-through' },
-
   priorityDot: { borderRadius: 6, width: 12, height: 12, marginRight: 6 },
 
+  // subtasks
   subTasksContainer: {
-    marginTop: 7, marginLeft: 36, borderLeftWidth: 2, borderColor: '#e0e5f2', paddingLeft: 11, width: '100%',
+    marginTop: 8,
+    borderLeftWidth: 2,
+    borderColor: '#e0e5f2',
+    paddingLeft: 10,
+  },
+  subTasksList: {
+    maxHeight: 160, // <- bounds the list to prevent overflow
   },
   subTaskRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   subTaskText: { fontSize: 15, color: '#555' },
-  subTaskInputRow: { flexDirection: 'row', alignItems: 'center', marginTop: 7, marginBottom: 2 },
+  subTaskInputRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
   subTaskInput: {
-    backgroundColor: '#f4f4f8', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10,
-    fontSize: 15, borderWidth: 1, borderColor: '#e0e5f2', marginRight: 6, flex: 1,
+    backgroundColor: '#f4f4f8',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: '#e0e5f2',
+    marginRight: 6,
+    flex: 1,
   },
 
-  modalLabel: { fontWeight: 'bold', color: '#2d3748', marginTop: 14, marginBottom: 6 },
-  dateBtn: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#eef3ff',
-    paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8,
+  // sticky composer
+  composer: {
+    position: 'absolute',
+    left: 0, right: 0, bottom: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#f5f8ff',
+    borderTopWidth: 1,
+    borderColor: '#e5e6ef',
+    gap: 8,
   },
-  dateBtnText: { marginLeft: 6, color: '#3d61b2', fontWeight: '600' },
-  notesInput: {
-    backgroundColor: '#fafafa', borderRadius: 10, padding: 10, minHeight: 90, textAlignVertical: 'top',
-    borderWidth: 1, borderColor: '#eee',
+  input: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#e5e6ef',
+    flex: 1,
   },
-  tagPill: {
-  backgroundColor: '#e9f4fa',
-  borderRadius: 8,
-  paddingHorizontal: 8,
-  paddingVertical: 2,
-},
-tagText: { color: '#3d61b2', fontSize: 12, fontWeight: '600' },
+  priorityRow: { flexDirection: 'row', alignItems: 'center' },
+  priPill: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8 },
+
+  // quick toolbar
+  toolbar: {
+    position: 'absolute',
+    left: 0, right: 0, bottom: 0,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    backgroundColor: '#eef3ff',
+    borderTopWidth: 1,
+    borderColor: '#e0e5f2',
+    padding: 8,
+  },
+  toolbarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  toolbarLabel: { marginLeft: 6, fontWeight: '600' },
+
+  // tag pill
+  tagPill: { backgroundColor: '#e9f4fa', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
+  tagText: { color: '#3d61b2', fontSize: 12, fontWeight: '600' },
 });
