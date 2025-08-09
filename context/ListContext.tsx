@@ -11,6 +11,7 @@ type ListContextType = {
   lists: List[];
   addList: (list: Omit<List, 'id'>) => void;
   deleteList: (id: string) => void;
+  
 };
 
 const ListContext = createContext<ListContextType | undefined>(undefined);

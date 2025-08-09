@@ -1,12 +1,16 @@
 // app/(tabs)/todo/index.tsx
+import CreateListModal from '@/components/CreateListModal';
 import { useListContext } from '@/context/ListContext';
 import { useTodoContext } from '@/context/TodoContext';
+import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function TodoDashboard() {
   const { todos } = useTodoContext();
   const { lists } = useListContext();
+  const [listModalOpen, setListModalOpen] = useState(false);
 
   const counts = {
     all: todos.length,
@@ -21,8 +25,7 @@ export default function TodoDashboard() {
     <View style={{ flex: 1, backgroundColor: '#f5f8ff', padding: 16 }}>
       <Text style={s.title}>To‑Do</Text>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
-        {/* Dashboard cards */}
+      <ScrollView contentContainerStyle={{ paddingBottom: 140 }}>
         <View style={s.grid}>
           <DashCard label="All" count={counts.all} href="/(tabs)/all" />
           <DashCard label="Scheduled" count={counts.scheduled} href="/(tabs)/scheduled" />
@@ -32,29 +35,36 @@ export default function TodoDashboard() {
           <DashCard label="Lists" count={counts.lists} href="/(tabs)/todo/lists" />
         </View>
 
-        {/* My Lists preview */}
         <Text style={s.sectionTitle}>My Lists</Text>
         <View style={{ gap: 10 }}>
           {lists.map(l => {
-            const open = () => router.push({ pathname: '/todo/[listId]', params: { listId: l.id } });
             const activeCount = todos.filter(t => t.listId === l.id && !t.done).length;
             return (
-              <TouchableOpacity key={l.id} style={s.listRow} onPress={open}>
+              <TouchableOpacity key={l.id} style={s.listRow}
+                onPress={() => router.push({ pathname: '/todo/[listId]', params: { listId: l.id } })}
+             >
+                <View style={[s.listIconCircle, { backgroundColor: l.color || '#e5e7eb' }]}>
+                    {!!l.icon && <Ionicons name={l.icon as any} size={16} color="#fff" />}
+                </View>
                 <Text style={s.listName}>{l.name}</Text>
                 <Text style={s.listCount}>{activeCount}</Text>
-              </TouchableOpacity>
+             </TouchableOpacity>
             );
           })}
-          {lists.length === 0 && (
-            <Text style={{ color: '#6b7280' }}>No lists yet. Tap “New Reminder” or add a list from Lists.</Text>
-          )}
         </View>
       </ScrollView>
 
-      {/* Floating create */}
-      <TouchableOpacity style={s.fab} onPress={() => router.push('/todo/new')}>
-        <Text style={s.fabText}>New Reminder</Text>
-      </TouchableOpacity>
+      {/* Two actions: new reminder + new list */}
+      <View style={s.fabRow}>
+        <TouchableOpacity style={[s.fab, { backgroundColor: '#4f46e5' }]} onPress={() => router.push('/todo/new')}>
+          <Text style={s.fabText}>New Reminder</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[s.fab, { backgroundColor: '#2563eb' }]} onPress={() => setListModalOpen(true)}>
+          <Text style={s.fabText}>New List</Text>
+        </TouchableOpacity>
+      </View>
+
+      <CreateListModal visible={listModalOpen} onClose={() => setListModalOpen(false)} />
     </View>
   );
 }
@@ -83,9 +93,8 @@ const s = StyleSheet.create({
   },
   listName: { fontWeight: '600', color: '#111827' },
   listCount: { color: '#6b7280', fontWeight: '700' },
-  fab: {
-    position: 'absolute', bottom: 24, right: 16, backgroundColor: '#4557d6',
-    paddingVertical: 12, paddingHorizontal: 16, borderRadius: 999,
-  },
-  fabText: { color: '#fff', fontWeight: '700' },
+  fabRow: { position:'absolute', right:16, bottom:24, gap:10 },
+  fab: { borderRadius:999, paddingHorizontal:16, paddingVertical:12 },
+  fabText: { color:'#fff', fontWeight:'700' },
+  listIconCircle:{ width:22, height:22, borderRadius:11, alignItems:'center', justifyContent:'center', marginRight:10 },
 });

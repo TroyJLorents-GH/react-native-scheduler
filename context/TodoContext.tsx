@@ -203,11 +203,12 @@ export type Todo = {
   completedAt?: Date;
   dueDate?: Date;
   notes?: string;
-  priority: Priority;
+  priority?: 'high'|'medium'|'low';
   favorite?: boolean;
+  tags?: string[];
   category?: string;
   recurrence?: Recurrence;
-  subTasks?: SubTask[];
+  subTasks?: { id : string; text: string; done: boolean }[]  ;
 };
 
 export type List = {

@@ -26,6 +26,7 @@
 
 
 
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
 export default function TabsLayout() {
@@ -38,9 +39,19 @@ export default function TabsLayout() {
       <Tabs.Screen name="priority" options={{ title: 'Priority' }} />
       <Tabs.Screen name="scheduled" options={{ title: 'Scheduled' }} />
       <Tabs.Screen name="reminders" options={{ title: 'Reminders' }} />
-      <Tabs.Screen name="lists" options={{ title: 'Lists (old)'}} />
+      <Tabs.Screen name="lists" options={{ title: 'Lists (old)' }} />
+      <Tabs.Screen
+        name="tags"
+        options={{
+          title: 'Tags',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="pricetags-outline" size={size} color={color} />
+          ),
+        }}
+      />
       {/* NEW nested stack under the Todo tab */}
       <Tabs.Screen name="todo" options={{ title: 'To‑Do' }} />
     </Tabs>
   );
 }
+
