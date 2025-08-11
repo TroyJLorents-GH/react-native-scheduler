@@ -186,7 +186,33 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // app/(tabs)/todo/new.tsx
+
+
+
+
 import ListPickerModal from '@/components/ListPickerModal';
 import PrioritySheet from '@/components/PrioritySheet';
 import TagPickerModal from '@/components/TagPickerModal';
@@ -199,6 +225,13 @@ import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 type Priority = 'high'|'medium'|'low';
 
+type SubTask = {
+  id: string;
+  text: string;
+  done: boolean;
+  createdAt: Date;
+};
+
 export default function NewReminder() {
   const { addTodo } = useTodoContext();
   const { lists } = useListContext();
@@ -209,6 +242,7 @@ export default function NewReminder() {
   const [listId, setListId] = useState(defaultListId);
   const [priority, setPriority] = useState<Priority>('medium');
   const [favorite, setFavorite] = useState(false);
+  const [category, setCategory] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
@@ -337,7 +371,7 @@ export default function NewReminder() {
       <View style={s.accessory}>
         <AccessoryButton label={dueDate ? dueDate.toLocaleDateString() : 'Date'} onPress={() => setQuickDateOpen(true)} />
         <AccessoryButton label={`Priority`} onPress={() => setPriorityOpen(true)} />
-        <AccessoryButton label={tags.length ? `${tags.length} Tag${tags.length>1?'s':''}` : 'Tags'} onPress={() => setTagsOpen(true)} />
+        <AccessoryButton label={tags.length ? `${tags.length} Tag${tags.length>1?'s':''}` : '#'} onPress={() => setTagsOpen(true)} />
         <AccessoryButton label="Location" onPress={() => { /* later */ }} />
         <AccessoryButton label="Photo" onPress={() => { /* later */ }} />
         <AccessoryButton label="Lists" onPress={() => setListPickerOpen(true)} />
@@ -406,7 +440,7 @@ const s = StyleSheet.create({
   subText:{ color:'#111827' },
 
   // accessory row
-  accessory:{ position:'absolute', left:0, right:0, bottom:0, flexDirection:'row', flexWrap:'wrap', padding:8, backgroundColor:'#f3f4f6', borderTopWidth:1, borderColor:'#e5e7eb', gap:8 },
+  accessory:{ position:'absolute', left:0, right:0, bottom:0, flexDirection:'row', flexWrap:'nowrap', padding:8, backgroundColor:'#f3f4f6', borderTopWidth:1, borderColor:'#e5e7eb', gap:2, justifyContent:'center'  },
   accBtn:{ backgroundColor:'#fff', paddingHorizontal:10, paddingVertical:6, borderRadius:10, borderWidth:1, borderColor:'#e5e7eb' },
   accTxt:{ fontWeight:'600', color:'#111827' },
 
