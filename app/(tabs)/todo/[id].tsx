@@ -61,7 +61,7 @@ export default function TodoDetails() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff', paddingTop: 16 }}>
+    <View style={{ flex: 1, backgroundColor: '#fff', paddingTop: 50 }}>
       <View style={s.top}>
         <TouchableOpacity onPress={() => router.back()}><Text style={s.link}>Back</Text></TouchableOpacity>
         <Text style={s.title}>Details</Text>

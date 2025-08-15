@@ -41,10 +41,11 @@ export default function MyListsScreen() {
       <FlatList
         data={lists}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 16 }}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={[styles.listItem, { backgroundColor: '#fff' }]}
-            onPress={() => router.push(`/todo/${item.id}`)}
+            onPress={() => router.push({ pathname: '/todo/list-items', params: { listId: item.id } })}
           >
             <Ionicons name={item.icon as any} size={22} color={item.color} style={{ marginRight: 10 }} />
             <Text style={styles.listName}>{item.name}</Text>
@@ -121,7 +122,7 @@ export default function MyListsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9ff', padding: 16 },
+  container: { flex: 1, backgroundColor: '#f8f9ff' },
   header: { fontSize: 22, fontWeight: 'bold', marginBottom: 16, alignSelf: 'center', color: '#374151' },
   listItem: {
     flexDirection: 'row',

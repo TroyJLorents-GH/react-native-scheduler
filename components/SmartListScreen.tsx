@@ -35,7 +35,7 @@ export default function SmartListScreen({ filter, title }: { filter: (todo: any)
           returnKeyType="done"
         />
         <TouchableOpacity onPress={handleAddSub}>
-          <Ionicons name="add-circle-outline" size={22} color="#67c99a" />
+          <Ionicons name="add-circle-outline" size={22} color="#67c99a" style={{ marginRight: 25 }} />
         </TouchableOpacity>
       </View>
     );
@@ -43,11 +43,11 @@ export default function SmartListScreen({ filter, title }: { filter: (todo: any)
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>{title}</Text>
+      {title && <Text style={styles.header}>{title}</Text>}
       <SwipeListView
         data={filtered}
         keyExtractor={item => item.id}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 22 }}
         renderItem={({ item }) => (
           <View style={styles.todoRow}>
             {item.favorite && (
@@ -67,7 +67,12 @@ export default function SmartListScreen({ filter, title }: { filter: (todo: any)
                 style={{ marginRight: 9 }}
               />
             </TouchableOpacity>
-            <Text style={[styles.todoText, item.done && styles.doneText]}>{item.text}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.todoText, item.done && styles.doneText]}>{item.text}</Text>
+              {item.notes && (
+                <Text style={styles.notesText}>{item.notes}</Text>
+              )}
+            </View>
             {item.dueDate && (
               <View style={{ marginLeft: 6, flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="calendar-outline" size={17} color="#9ad0f5" style={{ marginRight: 2 }} />
@@ -143,7 +148,7 @@ export default function SmartListScreen({ filter, title }: { filter: (todo: any)
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 22, backgroundColor: '#f5f8ff' },
+  container: { flex: 1, backgroundColor: '#f5f8ff' },
   header: { fontSize: 22, fontWeight: 'bold', color: '#556de8', marginBottom: 16, alignSelf: 'center' },
   todoRow: {
     flexDirection: 'row',
@@ -161,6 +166,7 @@ const styles = StyleSheet.create({
   },
   todoText: { fontSize: 16, color: '#222', flex: 1 },
   doneText: { color: '#aaa', textDecorationLine: 'line-through' },
+  notesText: { fontSize: 14, color: '#666', marginTop: 4, fontStyle: 'italic' },
   rowBack: {
     flex: 1,
     flexDirection: 'row',
@@ -189,7 +195,7 @@ const styles = StyleSheet.create({
   },
   subTasksContainer: {
     marginTop: 7,
-    marginLeft: 36,
+    marginLeft: 32,
     borderLeftWidth: 2,
     borderColor: '#e0e5f2',
     paddingLeft: 11,
@@ -218,7 +224,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     borderWidth: 1,
     borderColor: '#e0e5f2',
-    marginRight: 6,
+    marginRight: 18,
     flex: 1,
   },
 });

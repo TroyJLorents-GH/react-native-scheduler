@@ -1,452 +1,533 @@
-// // app/(tabs)/todo/new.tsx
-// import { useListContext } from '@/context/ListContext';
-// import { useTodoContext } from '@/context/TodoContext';
-// import { router } from 'expo-router';
-// import React, { useMemo, useState } from 'react';
-// import { KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-// import DateTimePickerModal from 'react-native-modal-datetime-picker';
-
-// export default function NewReminder() {
-//   const { addTodo } = useTodoContext();
-//   const { lists } = useListContext();
-
-//   const defaultListId = useMemo(() => (lists[0]?.id ?? 'inbox'), [lists]);
-
-//   const [text, setText] = useState('');
-//   const [listId, setListId] = useState(defaultListId);
-//   const [priority, setPriority] = useState<'high' | 'medium' | 'low'>('medium');
-//   const [favorite, setFavorite] = useState(false);
-//   const [category, setCategory] = useState('');
-//   const [notes, setNotes] = useState('');
-//   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
-
-//   const [pickerVisible, setPickerVisible] = useState(false);
-//   const [quickDateOpen, setQuickDateOpen] = useState(false);
-
-//   const save = () => {
-//     if (!text.trim()) return;
-//     addTodo({
-//       id: Date.now().toString(),
-//       text: text.trim(),
-//       listId,
-//       done: false,
-//       createdAt: new Date(),
-//       priority,
-//       favorite,
-//       category: category.trim() ? category.trim() : undefined,
-//       notes: notes.trim() ? notes.trim() : undefined,
-//       dueDate,
-//     });
-//     router.replace({ pathname: '/todo/[listId]', params: { listId } });
-//   };
-
-//   // quick date helpers
-//   const setToday = () => { setDueDate(endOfDay(new Date())); setQuickDateOpen(false); };
-//   const setTomorrow = () => { const d=new Date(); d.setDate(d.getDate()+1); setDueDate(endOfDay(d)); setQuickDateOpen(false); };
-//   const setWeekend = () => { const d=new Date(); const day=d.getDay(); const toSat=(6 - day + 7)%7; d.setDate(d.getDate()+toSat); setDueDate(endOfDay(d)); setQuickDateOpen(false); };
-//   const setNextWeek = () => { const d=new Date(); d.setDate(d.getDate() + (7 - d.getDay() + 1)); setDueDate(endOfDay(d)); setQuickDateOpen(false); };
-//   function endOfDay(d: Date){ const x=new Date(d); x.setHours(23,59,0,0); return x; }
-
-//   return (
-//     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#fff' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-//       <View style={{ flex: 1, padding: 50 }}>
-//         <View style={s.topBar}>
-//           <TouchableOpacity onPress={() => router.back()}><Text style={s.link}>Back</Text></TouchableOpacity>
-//           <Text style={s.title}>New Task</Text>
-//           <TouchableOpacity onPress={save}><Text style={s.link}>Add</Text></TouchableOpacity>
-//         </View>
-
-//         <Text style={s.label}>New Task</Text>
-//         <TextInput
-//           style={s.input}
-//           placeholder="Description"
-//           value={text}
-//           onChangeText={setText}
-//           returnKeyType="done"
-//         />
-
-//         <Text style={s.label}>List</Text>
-//         <View style={s.pillRow}>
-//           {lists.map(l => (
-//             <TouchableOpacity key={l.id} style={[s.pill, listId===l.id && s.pillActive]} onPress={() => setListId(l.id)}>
-//               <Text style={[s.pillText, listId===l.id && s.pillTextActive]}>{l.name}</Text>
-//             </TouchableOpacity>
-//           ))}
-//         </View>
-
-//         <Text style={s.label}>Priority</Text>
-//         <View style={s.pillRow}>
-//           {(['high','medium','low'] as const).map(p=>(
-//             <TouchableOpacity key={p} style={[s.pill, priority===p && s.pillActive]} onPress={()=>setPriority(p)}>
-//               <Text style={[s.pillText, priority===p && s.pillTextActive]}>{p.toUpperCase()}</Text>
-//             </TouchableOpacity>
-//           ))}
-//         </View>
-
-//         <Text style={s.label}>Favorite</Text>
-//         <TouchableOpacity style={s.row} onPress={() => setFavorite(v=>!v)}>
-//           <Text style={{ fontWeight: '600' }}>{favorite ? '⭐ Favorited' : '☆ Not favorited'}</Text>
-//         </TouchableOpacity>
-
-//         <Text style={s.label}>Date & Time</Text>
-//         <View style={s.row}>
-//           <TouchableOpacity style={s.btn} onPress={() => setQuickDateOpen(true)}>
-//             <Text style={s.btnText}>{dueDate ? dueDate.toLocaleString() : 'Pick date'}</Text>
-//           </TouchableOpacity>
-//           {dueDate && (
-//             <TouchableOpacity style={[s.btn, { marginLeft: 8, backgroundColor: '#fee2e2' }]} onPress={() => setDueDate(undefined)}>
-//               <Text style={[s.btnText, { color: '#b91c1c' }]}>Clear</Text>
-//             </TouchableOpacity>
-//           )}
-//         </View>
-
-//         <Text style={s.label}>Category</Text>
-//         <TextInput style={s.input} placeholder="Category (optional)" value={category} onChangeText={setCategory} />
-
-//         <Text style={s.label}>Notes</Text>
-//         <TextInput style={[s.input, { height: 100, textAlignVertical: 'top' }]} placeholder="Notes (optional)" multiline value={notes} onChangeText={setNotes} />
-//       </View>
-
-//       {/* Keyboard accessory */}
-//       <View style={s.accessory}>
-//         <AccessoryButton label="Date" onPress={() => setQuickDateOpen(true)} />
-//         <AccessoryButton label="Priority" onPress={() => { /* already above; keep for parity */ }} />
-//         <AccessoryButton label="Labels" onPress={() => { /* could open tags in future */ }} />
-//         <AccessoryButton label="Location" onPress={() => { /* TBD */ }} />
-//         <AccessoryButton label="Photo" onPress={() => { /* TBD */ }} />
-//         <AccessoryButton label="Lists" onPress={() => { /* list chips already above */ }} />
-//       </View>
-
-//       {/* Quick date sheet */}
-//       <Modal transparent animationType="slide" visible={quickDateOpen} onRequestClose={()=>setQuickDateOpen(false)}>
-//         <View style={s.sheetBackdrop}>
-//           <View style={s.sheet}>
-//             <Text style={s.sheetTitle}>Schedule</Text>
-//             <TouchableOpacity style={s.sheetItem} onPress={setToday}><Text>Today</Text></TouchableOpacity>
-//             <TouchableOpacity style={s.sheetItem} onPress={setTomorrow}><Text>Tomorrow</Text></TouchableOpacity>
-//             <TouchableOpacity style={s.sheetItem} onPress={setWeekend}><Text>This Weekend</Text></TouchableOpacity>
-//             <TouchableOpacity style={s.sheetItem} onPress={setNextWeek}><Text>Next Week</Text></TouchableOpacity>
-//             <TouchableOpacity style={[s.sheetItem, {justifyContent:'space-between'}]} onPress={()=>{ setQuickDateOpen(false); setPickerVisible(true); }}>
-//               <Text>Custom…</Text><Text style={{color:'#6b7280'}}>{dueDate ? dueDate.toLocaleString() : ''}</Text>
-//             </TouchableOpacity>
-//             <TouchableOpacity style={[s.sheetItem,{justifyContent:'center'}]} onPress={()=>setQuickDateOpen(false)}>
-//               <Text style={{color:'#2563eb',fontWeight:'700'}}>Done</Text>
-//             </TouchableOpacity>
-//           </View>
-//         </View>
-//       </Modal>
-
-//       {/* Native picker for Custom */}
-//       <DateTimePickerModal
-//         isVisible={pickerVisible}
-//         mode="datetime"
-//         date={dueDate ?? new Date()}
-//         onConfirm={(d)=>{ setPickerVisible(false); setDueDate(d); }}
-//         onCancel={()=>setPickerVisible(false)}
-//       />
-//     </KeyboardAvoidingView>
-//   );
-// }
-
-// function AccessoryButton({ label, onPress }: { label: string; onPress: () => void }) {
-//   return (
-//     <TouchableOpacity style={s.accBtn} onPress={onPress}>
-//       <Text style={s.accTxt}>{label}</Text>
-//     </TouchableOpacity>
-//   );
-// }
-
-// const s = StyleSheet.create({
-//   topBar:{ flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:12 },
-//   link:{ color:'#418cff', fontWeight:'600' },
-//   title:{ fontWeight:'700', fontSize:16 },
-//   label:{ marginTop:14, marginBottom:6, fontWeight:'700', color:'#111827' },
-//   input:{ borderWidth:1, borderColor:'#e5e7eb', borderRadius:10, paddingHorizontal:12, paddingVertical: Platform.OS==='ios'?12:8, backgroundColor:'#fff' },
-//   pillRow:{ flexDirection:'row', flexWrap:'wrap', gap:8 },
-//   pill:{ paddingVertical:6, paddingHorizontal:10, borderRadius:999, backgroundColor:'#eef2ff' },
-//   pillActive:{ backgroundColor:'#4f46e5' },
-//   pillText:{ color:'#4338ca', fontWeight:'600' },
-//   pillTextActive:{ color:'#fff' },
-//   row:{ flexDirection:'row', alignItems:'center' },
-//   btn:{ paddingVertical:8, paddingHorizontal:12, borderRadius:8, backgroundColor:'#eef2ff' },
-//   btnText:{ color:'#4338ca', fontWeight:'600' },
-
-//   // accessory row
-//   accessory:{ position:'absolute', left:0, right:0, bottom:0, flexDirection:'row', flexWrap:'wrap',
-//     padding:8, backgroundColor:'#f3f4f6', borderTopWidth:1, borderColor:'#e5e7eb', gap:8 },
-//   accBtn:{ backgroundColor:'#fff', paddingHorizontal:10, paddingVertical:6, borderRadius:10, borderWidth:1, borderColor:'#e5e7eb' },
-//   accTxt:{ fontWeight:'600', color:'#111827' },
-
-//   // quick date sheet
-//   sheetBackdrop:{ flex:1, backgroundColor:'rgba(0,0,0,0.25)', justifyContent:'flex-end' },
-//   sheet:{ backgroundColor:'#fff', padding:16, borderTopLeftRadius:16, borderTopRightRadius:16 },
-//   sheetTitle:{ fontWeight:'700', fontSize:16, textAlign:'center', marginBottom:8 },
-//   sheetItem:{ paddingVertical:12, borderBottomWidth:1, borderColor:'#f3f4f6' },
-// });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// app/(tabs)/todo/new.tsx
-
-
-
-
-import ListPickerModal from '@/components/ListPickerModal';
-import PrioritySheet from '@/components/PrioritySheet';
-import TagPickerModal from '@/components/TagPickerModal';
 import { useListContext } from '@/context/ListContext';
 import { useTodoContext } from '@/context/TodoContext';
-import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useState } from 'react';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
-
-type Priority = 'high'|'medium'|'low';
-
-type SubTask = {
-  id: string;
-  text: string;
-  done: boolean;
-  createdAt: Date;
-};
 
 export default function NewReminder() {
   const { addTodo } = useTodoContext();
   const { lists } = useListContext();
-
-  const defaultListId = useMemo(() => (lists[0]?.id ?? 'inbox'), [lists]);
-
-  const [text, setText] = useState('');
-  const [listId, setListId] = useState(defaultListId);
-  const [priority, setPriority] = useState<Priority>('medium');
-  const [favorite, setFavorite] = useState(false);
-  const [category, setCategory] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
+  const params = useLocalSearchParams();
+  
+  const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
-  const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
+  const [selectedListId, setSelectedListId] = useState(String(params.preSelectedListId) || lists[0]?.id || '1');
+  
+  // Update selectedListId when params change (e.g., when returning from list picker)
+  React.useEffect(() => {
+    if (params.preSelectedListId) {
+      setSelectedListId(String(params.preSelectedListId));
+    }
+    
+    // Restore form data when returning from list picker
+    if (params.fromListPicker === 'true') {
+      if (params.title) setTitle(String(params.title));
+      if (params.notes) setNotes(String(params.notes));
+      if (params.priority) setPriority(String(params.priority) as 'high' | 'medium' | 'low');
+      if (params.dueDate) setSelectedDate(new Date(String(params.dueDate)));
+      if (params.subtasks) {
+        try {
+          const parsedSubtasks = JSON.parse(String(params.subtasks));
+          setSubtasks(parsedSubtasks);
+        } catch (e) {
+          // If parsing fails, keep current subtasks
+        }
+      }
+    }
+  }, [params.preSelectedListId, params.fromListPicker, params.title, params.notes, params.priority, params.dueDate, params.subtasks]);
 
-  // // subtasks for new item
-  const [subtasks, setSubtasks] = useState<SubTask[]>([]);
+  // Clear form data when screen loses focus (user navigates away)
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        // This runs when the screen loses focus (user navigates to another tab/screen)
+        // Clear all form data to prevent it from persisting
+        setTitle('');
+        setNotes('');
+        setSubtasks([]);
+        setShowSubtasks(false);
+        setSubInput('');
+        setSelectedDate(null);
+        setPriority('medium');
+        setSelectedListId(lists[0]?.id || '1');
+      };
+    }, [lists])
+  );
+  const [subtasks, setSubtasks] = useState<Array<{id: string, text: string, done: boolean, listId: string, createdAt: Date}>>([]);
+  const [showSubtasks, setShowSubtasks] = useState(false);
   const [subInput, setSubInput] = useState('');
-
   
-
-  const [pickerVisible, setPickerVisible] = useState(false);
-  const [quickDateOpen, setQuickDateOpen] = useState(false);
-  const [priorityOpen, setPriorityOpen] = useState(false);
-  const [tagsOpen, setTagsOpen] = useState(false);
-  const [listPickerOpen, setListPickerOpen] = useState(false);
-
-  // const addSub = () => {
-  //   const t = subInput.trim();
-  //   if (!t) return;
-  //   setSubtasks(prev => [...prev, { id: Date.now().toString(), text: t, done: false }]);
-  //   setSubInput('');
-  // };
-
+  // Date picker state
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   
-   const addSub = () => {
-    const t = subInput.trim();
-    if (!t) return;
-    setSubtasks(prev => [
-      ...prev,
-      { id: Date.now().toString(), text: t, done: false, createdAt: new Date() } // ← add createdAt
-    ]);
-   setSubInput('');
-  }; 
+  // Priority picker state
+  const [priorityPickerVisible, setPriorityPickerVisible] = useState(false);
+  const [priority, setPriority] = useState<'high' | 'medium' | 'low'>('medium');
+
+  const selectedList = lists.find(list => list.id === selectedListId);
 
   const save = () => {
-  if (!text.trim()) return;
-  addTodo({
-    id: Date.now().toString(),
-    text: text.trim(),
-    listId,
-    done: false,
-    createdAt: new Date(),
-    priority,
-    favorite,
-    category: category.trim() ? category.trim() : undefined,
-    notes: notes.trim() ? notes.trim() : undefined,
-    dueDate,
-    // subTasks: [],   // <- omit or keep [] if your type requires it
-  });
-  router.replace({ pathname: '/todo/[listId]', params: { listId } });
- };
+    if (!title.trim()) return;
+    addTodo({
+      id: Date.now().toString(),
+      text: title.trim(),
+      notes: notes.trim() || undefined,
+      listId: selectedListId,
+      done: false,
+      createdAt: new Date(),
+      subTasks: subtasks.length > 0 ? subtasks : undefined,
+      priority,
+      dueDate: selectedDate || undefined,
+    });
+    // Clear the form and navigate to the list items page
+    setTitle('');
+    setNotes('');
+    setSubtasks([]);
+    setShowSubtasks(false);
+    setSubInput('');
+    setSelectedDate(null);
+    setPriority('medium');
+    
+    // Navigate to the list items page where the todo was added
+    router.push({
+      pathname: '/todo/list-items',
+      params: { listId: selectedListId }
+    });
+  };
 
-  // const save = () => {
-  //   if (!text.trim()) return;
-  //   addTodo({
-  //     id: Date.now().toString(),
-  //     text: text.trim(),
-  //     listId,
-  //     done: false,
-  //     createdAt: new Date(),
-  //     priority,
-  //     favorite,
-  //     notes: notes.trim() ? notes.trim() : undefined,
-  //     dueDate,
-  //     tags: tags.length ? tags : undefined,
-  //     subTasks: subtasks.length ? subtasks : undefined,
-  //   });
-  //   router.replace({ pathname: '/todo/[listId]', params: { listId } });
-  // };
+  const navigateToDetails = () => {
+    // Navigate to details page with the current todo data
+    router.push({
+      pathname: '/todo/details',
+      params: {
+        title: title,
+        notes: notes,
+        listId: selectedListId,
+        isNew: 'true'
+      }
+    });
+  };
 
-  // quick date helpers
-  const setToday = () => { setDueDate(endOfDay(new Date())); setQuickDateOpen(false); };
-  const setTomorrow = () => { const d=new Date(); d.setDate(d.getDate()+1); setDueDate(endOfDay(d)); setQuickDateOpen(false); };
-  const setWeekend = () => { const d=new Date(); const day=d.getDay(); const toSat=(6 - day + 7)%7; d.setDate(d.getDate()+toSat); setDueDate(endOfDay(d)); setQuickDateOpen(false); };
-  const setNextWeek = () => { const d=new Date(); d.setDate(d.getDate() + (7 - d.getDay() + 1)); setDueDate(endOfDay(d)); setQuickDateOpen(false); };
-  function endOfDay(d: Date){ const x=new Date(d); x.setHours(23,59,0,0); return x; }
+  const navigateToListPicker = () => {
+    // Navigate to list picker with current form data
+    router.push({
+      pathname: '/todo/list-picker',
+      params: {
+        selectedListId: selectedListId,
+        title: title,
+        notes: notes,
+        subtasks: JSON.stringify(subtasks),
+        priority: priority,
+        dueDate: selectedDate ? selectedDate.toISOString() : ''
+      }
+    });
+  };
 
-  // tag suggestions sourced from your existing todos (optional): pass via context if you have it
-  const tagSuggestions: string[] = []; // fill later if you expose tags pool
+  const addSubtask = () => {
+    if (!subInput.trim()) return;
+    setSubtasks(prev => [...prev, {
+      id: Date.now().toString(),
+      text: subInput.trim(),
+      done: false,
+      listId: selectedListId,
+      createdAt: new Date(),
+    }]);
+    setSubInput('');
+  };
+
+  const toggleSubtask = (id: string) => {
+    setSubtasks(prev => prev.map(sub => 
+      sub.id === id ? { ...sub, done: !sub.done } : sub
+    ));
+  };
+
+  // Date picker functions
+  const showDatePicker = () => setDatePickerVisible(true);
+  const hideDatePicker = () => setDatePickerVisible(false);
+  const handleDateConfirm = (date: Date) => {
+    setSelectedDate(date);
+    hideDatePicker();
+  };
+
+  // Quick date functions
+  const setToday = () => {
+    const today = new Date();
+    today.setHours(23, 59, 0, 0);
+    setSelectedDate(today);
+  };
+
+  const setTomorrow = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(23, 59, 0, 0);
+    setSelectedDate(tomorrow);
+  };
+
+  const setThisWeekend = () => {
+    const today = new Date();
+    const daysUntilSaturday = (6 - today.getDay() + 7) % 7;
+    const saturday = new Date(today);
+    saturday.setDate(today.getDate() + daysUntilSaturday);
+    saturday.setHours(23, 59, 0, 0);
+    setSelectedDate(saturday);
+  };
+
+  const setNextWeek = () => {
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    nextWeek.setHours(23, 59, 0, 0);
+    setSelectedDate(nextWeek);
+  };
+
+  const showQuickDateOptions = () => {
+    Alert.alert(
+      'Quick Date',
+      'Select a date',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Today', onPress: setToday },
+        { text: 'Tomorrow', onPress: setTomorrow },
+        { text: 'This Weekend', onPress: setThisWeekend },
+        { text: 'Next Week', onPress: setNextWeek },
+        { text: 'Custom', onPress: showDatePicker },
+      ]
+    );
+  };
+
+  const showPriorityOptions = () => {
+    Alert.alert(
+      'Priority',
+      'Select priority',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'High', onPress: () => setPriority('high') },
+        { text: 'Medium', onPress: () => setPriority('medium') },
+        { text: 'Low', onPress: () => setPriority('low') },
+      ]
+    );
+  };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#fff' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={{ flex: 1, padding: 50 }}>
-        <View style={s.topBar}>
-          <TouchableOpacity onPress={() => router.back()}><Text style={s.link}>Back</Text></TouchableOpacity>
-          <Text style={s.title}>New Task</Text>
-          <TouchableOpacity onPress={save}><Text style={s.link}>Add</Text></TouchableOpacity>
-        </View>
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.cancelButton}>Cancel</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>New Reminder</Text>
+        <TouchableOpacity onPress={save} disabled={!title.trim()}>
+          <Text style={[styles.addButton, !title.trim() && styles.addButtonDisabled]}>
+            Add
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-        {/* Title */}
-        <Text style={s.label}>New Task</Text>
-        <TextInput
-          style={s.input}
-          placeholder="Description"
-          value={text}
-          onChangeText={setText}
-          returnKeyType="done"
-        />
-
-        {/* Subtasks */}
-        <Text style={s.label}>Subtasks</Text>
-        <View style={s.subRow}>
+      {/* Main Content */}
+      <View style={styles.content}>
+        {/* Title and Notes Input */}
+        <View style={styles.inputContainer}>
+          <View style={styles.titleRow}>
+            <TextInput
+              style={[styles.titleInput, {borderBottomWidth: 1, borderBottomColor: "#bababa"}]}
+              placeholder="Title"
+              placeholderTextColor={"#bababa"}
+              value={title}
+              onChangeText={setTitle}
+              multiline
+              returnKeyType="next"
+            />
+            {title.trim() && (
+              <TouchableOpacity 
+                onPress={() => setShowSubtasks(!showSubtasks)} 
+                style={styles.expandButton}
+              >
+                <Ionicons
+                  name={showSubtasks ? 'chevron-up' : 'chevron-down'}
+                  size={22}
+                  color="#67c99a"
+                />
+              </TouchableOpacity>
+            )}
+          </View>
           <TextInput
-            style={[s.input, { flex: 1, marginRight: 8 }]}
-            placeholder="Add subtask"
-            value={subInput}
-            onChangeText={setSubInput}
-            onSubmitEditing={addSub}
-            returnKeyType="done"
+            style={styles.notesInput}
+            placeholder="Notes"
+            placeholderTextColor={"#bababa"}
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            returnKeyType="default"
           />
-          <TouchableOpacity style={s.smallBtn} onPress={addSub}><Text style={s.smallBtnTxt}>Add</Text></TouchableOpacity>
-        </View>
-        <FlatList
-          data={subtasks}
-          keyExtractor={i => i.id}
-          renderItem={({ item }) => (
-            <View style={s.subItem}>
-              <Text style={s.subText}>{'○'} {item.text}</Text>
+          
+          {/* Subtasks Section */}
+          {showSubtasks && (
+            <View style={styles.subtasksContainer}>
+              {subtasks.map(sub => (
+                <TouchableOpacity
+                  key={sub.id}
+                  style={styles.subtaskRow}
+                  onPress={() => toggleSubtask(sub.id)}
+                >
+                  <Ionicons
+                    name={sub.done ? 'checkmark-circle' : 'ellipse-outline'}
+                    size={20}
+                    color={sub.done ? '#67c99a' : '#bbb'}
+                    style={{ marginRight: 7 }}
+                  />
+                  <Text style={[
+                    styles.subtaskText,
+                    sub.done && { textDecorationLine: 'line-through', color: '#aaa' }
+                  ]}>
+                    {sub.text}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <View style={styles.subtaskInputRow}>
+                <TextInput
+                  style={styles.subtaskInput}
+                  placeholder="Add subtask"
+                  placeholderTextColor={"#bababa"}
+                  value={subInput}
+                  onChangeText={setSubInput}
+                  onSubmitEditing={addSubtask}
+                  returnKeyType="done"
+                />
+                <TouchableOpacity onPress={addSubtask}>
+                  <Ionicons name="add-circle-outline" size={22} color="#67c99a" />
+                </TouchableOpacity>
+              </View>
             </View>
           )}
-          ListEmptyComponent={<Text style={{ color:'#6b7280' }}>No subtasks yet.</Text>}
-        />
-      </View>
-
-      {/* Keyboard accessory */}
-      <View style={s.accessory}>
-        <AccessoryButton label={dueDate ? dueDate.toLocaleDateString() : 'Date'} onPress={() => setQuickDateOpen(true)} />
-        <AccessoryButton label={`Priority`} onPress={() => setPriorityOpen(true)} />
-        <AccessoryButton label={tags.length ? `${tags.length} Tag${tags.length>1?'s':''}` : '#'} onPress={() => setTagsOpen(true)} />
-        <AccessoryButton label="Location" onPress={() => { /* later */ }} />
-        <AccessoryButton label="Photo" onPress={() => { /* later */ }} />
-        <AccessoryButton label="Lists" onPress={() => setListPickerOpen(true)} />
-      </View>
-
-      {/* Quick date sheet */}
-      <Modal transparent animationType="slide" visible={quickDateOpen} onRequestClose={()=>setQuickDateOpen(false)}>
-        <View style={s.sheetBackdrop}>
-          <View style={s.sheet}>
-            <Text style={s.sheetTitle}>Schedule</Text>
-            <TouchableOpacity style={s.sheetItem} onPress={setToday}><Text>Today</Text></TouchableOpacity>
-            <TouchableOpacity style={s.sheetItem} onPress={setTomorrow}><Text>Tomorrow</Text></TouchableOpacity>
-            <TouchableOpacity style={s.sheetItem} onPress={setWeekend}><Text>This Weekend</Text></TouchableOpacity>
-            <TouchableOpacity style={s.sheetItem} onPress={setNextWeek}><Text>Next Week</Text></TouchableOpacity>
-            <TouchableOpacity style={[s.sheetItem, {justifyContent:'space-between'}]} onPress={()=>{ setQuickDateOpen(false); setPickerVisible(true); }}>
-              <Text>Custom…</Text><Text style={{color:'#6b7280'}}>{dueDate ? dueDate.toLocaleString() : ''}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[s.sheetItem,{justifyContent:'center'}]} onPress={()=>setQuickDateOpen(false)}>
-              <Text style={{color:'#2563eb',fontWeight:'700'}}>Done</Text>
-            </TouchableOpacity>
-          </View>
         </View>
-      </Modal>
 
-      {/* Native picker for Custom */}
+        {/* Details Row */}
+        <TouchableOpacity style={styles.detailRow} onPress={navigateToDetails}>
+          <Text style={styles.detailText}>Details</Text>
+          <Ionicons name="chevron-forward" size={20} color="#8e8e93" />
+        </TouchableOpacity>
+
+        {/* List Row */}
+        <TouchableOpacity style={styles.detailRow} onPress={navigateToListPicker}>
+          <View style={styles.listInfo}>
+            <View style={[styles.listIcon, { backgroundColor: selectedList?.color || '#007AFF' }]}>
+              {selectedList?.icon && (
+                <Ionicons name={selectedList.icon as any} size={16} color="#fff" />
+              )}
+            </View>
+            <Text style={styles.detailText}>List</Text>
+          </View>
+          <View style={styles.listValue}>
+            <Text style={styles.listName}>{selectedList?.name || 'Reminders'}</Text>
+            <Ionicons name="chevron-forward" size={20} color="#8e8e93" />
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      {/* Keyboard Accessories */}
+      <View style={styles.keyboardAccessories}>
+        <TouchableOpacity style={styles.accessoryButton} onPress={showQuickDateOptions}>
+          <Ionicons name="calendar" size={20} color={selectedDate ? "#007AFF" : "#8e8e93"} />
+          <Text style={[styles.accessoryText, selectedDate && { color: "#007AFF" }]}>
+            {selectedDate ? 'Date Set' : 'Date'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.accessoryButton} onPress={showPriorityOptions}>
+          <Ionicons name="flag" size={20} color={priority === 'high' ? "#FF3B30" : priority === 'medium' ? "#FF9500" : "#8e8e93"} />
+          <Text style={[styles.accessoryText, priority !== 'medium' && { color: priority === 'high' ? "#FF3B30" : "#8e8e93" }]}>
+            {priority === 'high' ? 'High' : priority === 'medium' ? 'Priority' : 'Low'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.accessoryButton}>
+          <Ionicons name="pricetag" size={20} color="#8e8e93" />
+          <Text style={styles.accessoryText}>#</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.accessoryButton}>
+          <Ionicons name="location" size={20} color="#007AFF" />
+          <Text style={styles.accessoryText}>Location</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.accessoryButton}>
+          <Ionicons name="camera" size={20} color="#34C759" />
+          <Text style={styles.accessoryText}>Photo</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.accessoryButton} onPress={navigateToListPicker}>
+          <Ionicons name="list" size={20} color="#AF52DE" />
+          <Text style={styles.accessoryText}>Lists</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Date Picker Modal */}
       <DateTimePickerModal
-        isVisible={pickerVisible}
+        isVisible={datePickerVisible}
         mode="datetime"
-        date={dueDate ?? new Date()}
-        onConfirm={(d)=>{ setPickerVisible(false); setDueDate(d); }}
-        onCancel={()=>setPickerVisible(false)}
+        onConfirm={handleDateConfirm}
+        onCancel={hideDatePicker}
       />
-
-      {/* Priority */}
-      <PrioritySheet visible={priorityOpen} value={priority} onChange={setPriority} onClose={()=>setPriorityOpen(false)} />
-
-      {/* Tags */}
-      <TagPickerModal visible={tagsOpen} value={tags} suggestions={tagSuggestions} onChange={setTags} onClose={()=>setTagsOpen(false)} />
-
-      {/* List Picker */}
-      <ListPickerModal visible={listPickerOpen} value={listId} onChange={setListId} onClose={()=>setListPickerOpen(false)} />
     </KeyboardAvoidingView>
   );
 }
 
-function AccessoryButton({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <TouchableOpacity style={s.accBtn} onPress={onPress}>
-      <Text style={s.accTxt}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
-const s = StyleSheet.create({
-  topBar:{ flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:12 },
-  link:{ color:'#418cff', fontWeight:'600' },
-  title:{ fontWeight:'700', fontSize:16 },
-  label:{ marginTop:14, marginBottom:6, fontWeight:'700', color:'#111827' },
-  input:{ borderWidth:1, borderColor:'#e5e7eb', borderRadius:10, paddingHorizontal:12, paddingVertical: Platform.OS==='ios'?12:8, backgroundColor:'#fff' },
-
-  // subtasks
-  subRow:{ flexDirection:'row', alignItems:'center', marginBottom:8 },
-  smallBtn:{ backgroundColor:'#4f46e5', paddingHorizontal:12, paddingVertical:10, borderRadius:10 },
-  smallBtnTxt:{ color:'#fff', fontWeight:'700' },
-  subItem:{ paddingVertical:8 },
-  subText:{ color:'#111827' },
-
-  // accessory row
-  accessory:{ position:'absolute', left:0, right:0, bottom:0, flexDirection:'row', flexWrap:'nowrap', padding:8, backgroundColor:'#f3f4f6', borderTopWidth:1, borderColor:'#e5e7eb', gap:2, justifyContent:'center'  },
-  accBtn:{ backgroundColor:'#fff', paddingHorizontal:10, paddingVertical:6, borderRadius:10, borderWidth:1, borderColor:'#e5e7eb' },
-  accTxt:{ fontWeight:'600', color:'#111827' },
-
-  // quick date sheet
-  sheetBackdrop:{ flex:1, backgroundColor:'rgba(0,0,0,0.25)', justifyContent:'flex-end' },
-  sheet:{ backgroundColor:'#fff', padding:16, borderTopLeftRadius:16, borderTopRightRadius:16 },
-  sheetTitle:{ fontWeight:'700', fontSize:16, textAlign:'center', marginBottom:8 },
-  sheetItem:{ paddingVertical:12, borderBottomWidth:1, borderColor:'#f3f4f6' },
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 60 : 20,
+    paddingBottom: 16,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#38383a',
+  },
+  cancelButton: {
+    color: '#007AFF',
+    fontSize: 17,
+    fontWeight: '400',
+  },
+  title: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  addButton: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  addButtonDisabled: {
+    color: '#8e8e93',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  inputContainer: {
+    backgroundColor: '#1c1c1e',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 16,
+  },
+  titleInput: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '400',
+    minHeight: 24,
+    marginBottom: 8,
+  },
+  notesInput: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '400',
+    minHeight: 24,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#1c1c1e',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 8,
+  },
+  detailText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '400',
+  },
+  listInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  listIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  listValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  listName: {
+    color: '#8e8e93',
+    fontSize: 17,
+    fontWeight: '400',
+    marginRight: 8,
+  },
+  keyboardAccessories: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: '#1c1c1e',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderTopWidth: 0.5,
+    borderTopColor: '#38383a',
+  },
+  accessoryButton: {
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  accessoryText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '400',
+    marginTop: 4,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  expandButton: {
+    marginLeft: 8,
+    marginTop: 4,
+  },
+  subtasksContainer: {
+    marginTop: 12,
+  },
+  subtaskRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  subtaskText: {
+    color: '#fff',
+    fontSize: 16,
+    flex: 1,
+  },
+  subtaskInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  subtaskInput: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
 });

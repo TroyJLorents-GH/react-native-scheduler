@@ -1,4 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import moment from 'moment';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -55,7 +56,7 @@ export default function HomeDashboard() {
             </View>
           ))
         )}
-        <TouchableOpacity style={styles.addBtn}>
+        <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/add-event')}>
           <Ionicons name="add-circle" size={28} color="#556de8" />
           <Text style={styles.addBtnText}>Add Event</Text>
         </TouchableOpacity>
@@ -83,7 +84,7 @@ export default function HomeDashboard() {
             </View>
           ))
         )}
-        <TouchableOpacity style={styles.addBtn}>
+        <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/todo/new')}>
           <Ionicons name="add-circle" size={28} color="#67c99a" />
           <Text style={styles.addBtnText}>Add To-Do</Text>
         </TouchableOpacity>
