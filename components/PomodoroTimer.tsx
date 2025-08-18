@@ -1,0 +1,249 @@
+import { PomodoroSettings } from '@/context/TodoContext';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useRef, useState } from 'react';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+interface PomodoroTimerProps {
+  settings: PomodoroSettings;
+  onComplete?: () => void;
+}
+
+type TimerState = 'idle' | 'work' | 'break' | 'paused';
+
+export default function PomodoroTimer({ settings, onComplete }: PomodoroTimerProps) {
+  const [timerState, setTimerState] = useState<TimerState>('idle');
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [currentPhase, setCurrentPhase] = useState<'work' | 'break'>('work');
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Convert time to seconds
+  const getTimeInSeconds = (time: number, unit: 'min' | 'hour') => {
+    return unit === 'hour' ? time * 3600 : time * 60;
+  };
+
+  // Format seconds to MM:SS
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Start timer
+  const startTimer = () => {
+    if (timerState === 'idle') {
+      const workSeconds = getTimeInSeconds(settings.workTime, settings.workUnit);
+      setTimeLeft(workSeconds);
+      setCurrentPhase('work');
+      setTimerState('work');
+    } else if (timerState === 'paused') {
+      setTimerState(currentPhase);
+    }
+  };
+
+  // Pause timer
+  const pauseTimer = () => {
+    setTimerState('paused');
+  };
+
+  // Stop timer
+  const stopTimer = () => {
+    setTimerState('idle');
+    setTimeLeft(0);
+    setCurrentPhase('work');
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
+  // Handle timer completion
+  const handleTimerComplete = () => {
+    if (currentPhase === 'work') {
+      // Work session completed, start break
+      const breakSeconds = getTimeInSeconds(settings.breakTime, settings.breakUnit);
+      setTimeLeft(breakSeconds);
+      setCurrentPhase('break');
+      setTimerState('break');
+      
+      Alert.alert(
+        'Work Session Complete!',
+        'Great job! Time for a break.',
+        [{ text: 'OK' }]
+      );
+    } else {
+      // Break completed
+      setTimerState('idle');
+      setTimeLeft(0);
+      setCurrentPhase('work');
+      
+      Alert.alert(
+        'Break Complete!',
+        'Ready for the next work session?',
+        [
+          { text: 'Start Next Session', onPress: startTimer },
+          { text: 'Done', onPress: onComplete }
+        ]
+      );
+    }
+  };
+
+  // Timer effect
+  useEffect(() => {
+    if (timerState === 'work' || timerState === 'break') {
+      intervalRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            handleTimerComplete();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [timerState, currentPhase]);
+
+  const getPhaseText = () => {
+    switch (currentPhase) {
+      case 'work': return 'Work Session';
+      case 'break': return 'Break Time';
+      default: return 'Pomodoro Timer';
+    }
+  };
+
+  const getPhaseColor = () => {
+    return currentPhase === 'work' ? '#FF6B6B' : '#4ECDC4';
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>{getPhaseText()}</Text>
+      
+      <View style={styles.timerContainer}>
+        <Text style={[styles.timer, { color: getPhaseColor() }]}>
+          {formatTime(timeLeft)}
+        </Text>
+      </View>
+
+      <View style={styles.controls}>
+        {timerState === 'idle' && (
+          <TouchableOpacity style={styles.playButton} onPress={startTimer}>
+            <Ionicons name="play" size={24} color="#fff" />
+            <Text style={styles.buttonText}>Start</Text>
+          </TouchableOpacity>
+        )}
+
+        {(timerState === 'work' || timerState === 'break') && (
+          <>
+            <TouchableOpacity style={styles.pauseButton} onPress={pauseTimer}>
+              <Ionicons name="pause" size={24} color="#fff" />
+              <Text style={styles.buttonText}>Pause</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.stopButton} onPress={stopTimer}>
+              <Ionicons name="stop" size={24} color="#fff" />
+              <Text style={styles.buttonText}>Stop</Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {timerState === 'paused' && (
+          <>
+            <TouchableOpacity style={styles.playButton} onPress={startTimer}>
+              <Ionicons name="play" size={24} color="#fff" />
+              <Text style={styles.buttonText}>Resume</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.stopButton} onPress={stopTimer}>
+              <Ionicons name="stop" size={24} color="#fff" />
+              <Text style={styles.buttonText}>Stop</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+
+      <View style={styles.settings}>
+        <Text style={styles.settingsText}>
+          Work: {settings.workTime} {settings.workUnit} | Break: {settings.breakTime} {settings.breakUnit}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#1c1c1e',
+    borderRadius: 12,
+    padding: 20,
+    marginVertical: 8,
+    alignItems: 'center',
+  },
+  title: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  timerContainer: {
+    marginBottom: 20,
+  },
+  timer: {
+    fontSize: 48,
+    fontWeight: '700',
+    fontFamily: 'monospace',
+  },
+  controls: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  playButton: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 25,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pauseButton: {
+    backgroundColor: '#FF9800',
+    borderRadius: 25,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  stopButton: {
+    backgroundColor: '#F44336',
+    borderRadius: 25,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  settings: {
+    marginTop: 8,
+  },
+  settingsText: {
+    color: '#8e8e93',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+});

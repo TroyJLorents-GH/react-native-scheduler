@@ -1,5 +1,13 @@
 import React, { createContext, useContext, useState } from 'react';
 
+export type PomodoroSettings = {
+  enabled: boolean;
+  workTime: number;
+  workUnit: 'min' | 'hour';
+  breakTime: number;
+  breakUnit: 'min' | 'hour';
+};
+
 export type Todo = {
   id: string;
   text: string;
@@ -8,12 +16,19 @@ export type Todo = {
   createdAt: Date;
   priority?: 'low' | 'medium' | 'high';
   dueDate?: Date;
+  dueTime?: Date;
   category?: string;
   favorite?: boolean;
   notes?: string;
   reminder?: string;
+  earlyReminder?: string;
+  repeat?: string;
+  location?: string;
+  url?: string;
+  images?: string[];
   subTasks?: Todo[];
   tags?: string[];
+  pomodoro?: PomodoroSettings;
   recurrence?: {
     frequency: 'daily' | 'weekly' | 'monthly';
     interval: number;

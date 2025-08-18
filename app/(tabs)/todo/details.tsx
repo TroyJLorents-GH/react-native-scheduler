@@ -1,3 +1,5 @@
+import { useTempDetailsContext } from '@/context/TempDetailsContext';
+import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
@@ -6,20 +8,35 @@ import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 export default function DetailsScreen() {
   const params = useLocalSearchParams();
-  const { title, notes, listId, isNew } = params;
+  const { title, notes, listId, isNew, editId } = params;
+  const isEditing = isNew === 'false';
+  const { updateTodo, todos } = useTodoContext();
+  const { setTempDetails } = useTempDetailsContext();
+
+  // Get existing todo data when editing
+  const existingTodo = isEditing && editId ? todos.find(t => t.id === editId) : null;
 
   // State for reminder settings
-  const [dateEnabled, setDateEnabled] = useState(false);
-  const [timeEnabled, setTimeEnabled] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedTime, setSelectedTime] = useState(new Date());
+  const [dateEnabled, setDateEnabled] = useState(!!(existingTodo?.dueDate || params.dueDate));
+  
+  // Check if the existing due date has a specific time (not midnight)
+  const hasSpecificTime = existingTodo?.dueDate && new Date(existingTodo.dueDate).getHours() !== 0;
+  const [timeEnabled, setTimeEnabled] = useState(hasSpecificTime);
+  
+  const [selectedDate, setSelectedDate] = useState(
+    existingTodo?.dueDate ? new Date(existingTodo.dueDate) : 
+    params.dueDate ? new Date(String(params.dueDate)) : new Date()
+  );
+  const [selectedTime, setSelectedTime] = useState(
+    hasSpecificTime && existingTodo?.dueDate ? new Date(existingTodo.dueDate) : new Date()
+  );
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [earlyReminder, setEarlyReminder] = useState('None');
-  const [repeat, setRepeat] = useState('Never');
-  const [locationEnabled, setLocationEnabled] = useState(false);
+  const [earlyReminder, setEarlyReminder] = useState(existingTodo?.earlyReminder || 'None');
+  const [repeat, setRepeat] = useState(existingTodo?.repeat || 'Never');
+  const [locationEnabled, setLocationEnabled] = useState(!!existingTodo?.location);
   const [flagEnabled, setFlagEnabled] = useState(false);
-  const [priority, setPriority] = useState('None');
+  const [priority, setPriority] = useState(String(existingTodo?.priority || params.priority || 'medium'));
   const [tags, setTags] = useState<string[]>([]);
 
   // Modal states
@@ -47,27 +64,63 @@ export default function DetailsScreen() {
   };
 
   const handleSave = () => {
-    // Here you would save all the details to your todo context
-    // For now, just show a success message and go back
-    Alert.alert('Success', 'Details saved successfully!', [
-      { text: 'OK', onPress: () => router.back() }
-    ]);
+    if (isEditing && editId) {
+      // When editing, update the todo directly and navigate to task details page
+      let updatedDueDate = undefined;
+      if (dateEnabled) {
+        updatedDueDate = new Date(selectedDate);
+        if (timeEnabled) {
+          // Combine date and time
+          const time = new Date(selectedTime);
+          updatedDueDate.setHours(time.getHours(), time.getMinutes(), 0, 0);
+        }
+      }
+      
+      updateTodo(String(editId), {
+        dueDate: updatedDueDate,
+        priority: priority !== 'None' ? priority as 'high' | 'medium' | 'low' : undefined,
+        earlyReminder: earlyReminder !== 'None' ? earlyReminder : undefined,
+        repeat: repeat !== 'Never' ? repeat : undefined,
+        location: locationEnabled ? 'Location set' : undefined,
+      });
+      
+      // Navigate to task details page
+      router.push({
+        pathname: '/todo/task-details',
+        params: { id: editId }
+      });
+    } else {
+      // When creating new, store details temporarily and navigate back
+      const details = {
+        dueDate: dateEnabled ? selectedDate : undefined,
+        dueTime: timeEnabled ? selectedTime : undefined,
+        priority: priority !== 'None' ? priority as 'high' | 'medium' | 'low' : undefined,
+        earlyReminder: earlyReminder !== 'None' ? earlyReminder : undefined,
+        repeat: repeat !== 'Never' ? repeat : undefined,
+        location: locationEnabled ? 'Location set' : undefined,
+      };
+      
+      // Store details in context
+      setTempDetails(details);
+      
+      router.back();
+    }
   };
 
   const repeatOptions = ['Never', 'Daily', 'Weekdays', 'Weekends', 'Weekly', 'Biweekly', 'Monthly', 'Yearly'];
-  const priorityOptions = ['None', 'Low', 'Medium', 'High'];
+  const priorityOptions = ['None', 'low', 'medium', 'high'];
   const earlyReminderOptions = ['None', '5 minutes before', '15 minutes before', '1 hour before', '1 day before'];
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => handleSave()}>
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Details</Text>
         <TouchableOpacity onPress={handleSave}>
-          <Text style={styles.addButton}>Add</Text>
+          <Text style={styles.addButton}>{isEditing ? 'Save' : 'Add'}</Text>
         </TouchableOpacity>
       </View>
 

@@ -1,7 +1,8 @@
+import PomodoroSettings from '@/components/PomodoroSettings';
 import { useListContext } from '@/context/ListContext';
+import { useTempDetailsContext } from '@/context/TempDetailsContext';
 import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -17,13 +18,19 @@ import {
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 export default function NewReminder() {
-  const { addTodo } = useTodoContext();
+  const { addTodo, updateTodo, todos } = useTodoContext();
   const { lists } = useListContext();
+  const { tempDetails, setTempDetails } = useTempDetailsContext();
   const params = useLocalSearchParams();
+
   
-  const [title, setTitle] = useState('');
-  const [notes, setNotes] = useState('');
-  const [selectedListId, setSelectedListId] = useState(String(params.preSelectedListId) || lists[0]?.id || '1');
+  const editId = params.editId as string;
+  const isEditing = !!editId;
+  const existingTodo = isEditing ? todos.find(t => t.id === editId) : null;
+  
+  const [title, setTitle] = useState(existingTodo?.text || '');
+  const [notes, setNotes] = useState(existingTodo?.notes || '');
+  const [selectedListId, setSelectedListId] = useState(existingTodo?.listId || String(params.preSelectedListId) || lists[0]?.id || '1');
   
   // Update selectedListId when params change (e.g., when returning from list picker)
   React.useEffect(() => {
@@ -45,53 +52,154 @@ export default function NewReminder() {
           // If parsing fails, keep current subtasks
         }
       }
+      // Restore Pomodoro settings
+      if (params.pomodoroEnabled) setPomodoroEnabled(params.pomodoroEnabled === 'true');
+      if (params.workTime) setWorkTime(Number(params.workTime));
+      if (params.workUnit) setWorkUnit(String(params.workUnit) as 'min' | 'hour');
+      if (params.breakTime) setBreakTime(Number(params.breakTime));
+      if (params.breakUnit) setBreakUnit(String(params.breakUnit) as 'min' | 'hour');
     }
-  }, [params.preSelectedListId, params.fromListPicker, params.title, params.notes, params.priority, params.dueDate, params.subtasks]);
+    
+    // Restore form data when returning from details page
+    if (params.detailsSaved === 'true') {
+      if (params.title) setTitle(String(params.title));
+      if (params.notes) setNotes(String(params.notes));
+      if (params.listId) setSelectedListId(String(params.listId));
+      if (params.subtasks) {
+        try {
+          const parsedSubtasks = JSON.parse(String(params.subtasks));
+          setSubtasks(parsedSubtasks);
+        } catch (e) {
+          // If parsing fails, keep current subtasks
+        }
+      }
+      // Restore details data
+      if (params.dueDate) {
+        const date = new Date(String(params.dueDate));
+        if (params.dueTime) {
+          // Combine date and time if both are set
+          const time = new Date(String(params.dueTime));
+          date.setHours(time.getHours(), time.getMinutes(), 0, 0);
+        }
+        setSelectedDate(date);
+      }
+      if (params.priority && params.priority !== 'None') setPriority(String(params.priority) as 'high' | 'medium' | 'low');
+      if (params.earlyReminder) setEarlyReminder(String(params.earlyReminder));
+      if (params.repeat) setRepeat(String(params.repeat));
+      if (params.location) setLocation(String(params.location));
+      if (params.url) setUrl(String(params.url));
+      // Restore edit context if editing
+      if (params.editId) {
+        // This ensures we stay in edit mode
+        // The editId will be handled by the existing logic at the top of the component
+      }
+      // Restore Pomodoro settings
+      if (params.pomodoroEnabled) setPomodoroEnabled(params.pomodoroEnabled === 'true');
+      if (params.workTime) setWorkTime(Number(params.workTime));
+      if (params.workUnit) setWorkUnit(String(params.workUnit) as 'min' | 'hour');
+      if (params.breakTime) setBreakTime(Number(params.breakTime));
+      if (params.breakUnit) setBreakUnit(String(params.breakUnit) as 'min' | 'hour');
+    }
+  }, [params.preSelectedListId, params.fromListPicker, params.detailsSaved, params.editId, params.title, params.notes, params.priority, params.dueDate, params.dueTime, params.subtasks, params.earlyReminder, params.repeat, params.location, params.url, params.pomodoroEnabled, params.workTime, params.workUnit, params.breakTime, params.breakUnit]);
 
-  // Clear form data when screen loses focus (user navigates away)
-  useFocusEffect(
-    React.useCallback(() => {
-      return () => {
-        // This runs when the screen loses focus (user navigates to another tab/screen)
-        // Clear all form data to prevent it from persisting
-        setTitle('');
-        setNotes('');
-        setSubtasks([]);
-        setShowSubtasks(false);
-        setSubInput('');
-        setSelectedDate(null);
-        setPriority('medium');
-        setSelectedListId(lists[0]?.id || '1');
-      };
-    }, [lists])
-  );
-  const [subtasks, setSubtasks] = useState<Array<{id: string, text: string, done: boolean, listId: string, createdAt: Date}>>([]);
+  // Apply temp details when they exist
+  React.useEffect(() => {
+    if (tempDetails && !isEditing) {
+      if (tempDetails.dueDate) {
+        let date = new Date(tempDetails.dueDate);
+        if (tempDetails.dueTime) {
+          const time = new Date(tempDetails.dueTime);
+          date.setHours(time.getHours(), time.getMinutes(), 0, 0);
+        }
+        setSelectedDate(date);
+      }
+      if (tempDetails.priority) setPriority(tempDetails.priority);
+      if (tempDetails.earlyReminder) setEarlyReminder(tempDetails.earlyReminder);
+      if (tempDetails.repeat) setRepeat(tempDetails.repeat);
+      if (tempDetails.location) setLocation(tempDetails.location);
+      
+      // Clear temp details after applying them
+      setTempDetails(null);
+    }
+  }, [tempDetails, isEditing, setTempDetails]);
+
+
+  const [subtasks, setSubtasks] = useState<Array<{id: string, text: string, done: boolean, listId: string, createdAt: Date}>>(existingTodo?.subTasks || []);
   const [showSubtasks, setShowSubtasks] = useState(false);
   const [subInput, setSubInput] = useState('');
   
   // Date picker state
   const [datePickerVisible, setDatePickerVisible] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(existingTodo?.dueDate ? new Date(existingTodo.dueDate) : null);
   
   // Priority picker state
   const [priorityPickerVisible, setPriorityPickerVisible] = useState(false);
-  const [priority, setPriority] = useState<'high' | 'medium' | 'low'>('medium');
+  const [priority, setPriority] = useState<'high' | 'medium' | 'low'>(existingTodo?.priority || 'medium');
+
+  // Additional details state
+  const [earlyReminder, setEarlyReminder] = useState(existingTodo?.earlyReminder || 'None');
+  const [repeat, setRepeat] = useState(existingTodo?.repeat || 'Never');
+  const [location, setLocation] = useState(existingTodo?.location || '');
+  const [url, setUrl] = useState(existingTodo?.url || '');
+  
+  // Pomodoro state
+  const [pomodoroEnabled, setPomodoroEnabled] = useState(existingTodo?.pomodoro?.enabled || false);
+  const [workTime, setWorkTime] = useState(existingTodo?.pomodoro?.workTime || 25);
+  const [workUnit, setWorkUnit] = useState<'min' | 'hour'>(existingTodo?.pomodoro?.workUnit || 'min');
+  const [breakTime, setBreakTime] = useState(existingTodo?.pomodoro?.breakTime || 5);
+  const [breakUnit, setBreakUnit] = useState<'min' | 'hour'>(existingTodo?.pomodoro?.breakUnit || 'min');
 
   const selectedList = lists.find(list => list.id === selectedListId);
 
   const save = () => {
     if (!title.trim()) return;
-    addTodo({
-      id: Date.now().toString(),
-      text: title.trim(),
-      notes: notes.trim() || undefined,
-      listId: selectedListId,
-      done: false,
-      createdAt: new Date(),
-      subTasks: subtasks.length > 0 ? subtasks : undefined,
-      priority,
-      dueDate: selectedDate || undefined,
-    });
+    
+    if (isEditing && existingTodo) {
+      // Update existing todo
+      updateTodo(existingTodo.id, {
+        text: title.trim(),
+        notes: notes.trim() || undefined,
+        listId: selectedListId,
+        subTasks: subtasks.length > 0 ? subtasks : undefined,
+        priority,
+        dueDate: selectedDate || undefined,
+        earlyReminder: earlyReminder !== 'None' ? earlyReminder : undefined,
+        repeat: repeat !== 'Never' ? repeat : undefined,
+        location: location || undefined,
+        url: url || undefined,
+        pomodoro: pomodoroEnabled ? {
+          enabled: true,
+          workTime,
+          workUnit,
+          breakTime,
+          breakUnit,
+        } : undefined,
+      });
+    } else {
+      // Create new todo
+      addTodo({
+        id: Date.now().toString(),
+        text: title.trim(),
+        notes: notes.trim() || undefined,
+        listId: selectedListId,
+        done: false,
+        createdAt: new Date(),
+        subTasks: subtasks.length > 0 ? subtasks : undefined,
+        priority,
+        dueDate: selectedDate || undefined,
+        earlyReminder: earlyReminder !== 'None' ? earlyReminder : undefined,
+        repeat: repeat !== 'Never' ? repeat : undefined,
+        location: location || undefined,
+        url: url || undefined,
+        pomodoro: pomodoroEnabled ? {
+          enabled: true,
+          workTime,
+          workUnit,
+          breakTime,
+          breakUnit,
+        } : undefined,
+      });
+    }
     // Clear the form and navigate to the list items page
     setTitle('');
     setNotes('');
@@ -100,12 +208,28 @@ export default function NewReminder() {
     setSubInput('');
     setSelectedDate(null);
     setPriority('medium');
+    setPomodoroEnabled(false);
+    setWorkTime(25);
+    setWorkUnit('min');
+    setBreakTime(5);
+    setBreakUnit('min');
+    setEarlyReminder('None');
+    setRepeat('Never');
+    setLocation('');
+    setUrl('');
     
-    // Navigate to the list items page where the todo was added
-    router.push({
-      pathname: '/todo/list-items',
-      params: { listId: selectedListId }
-    });
+    // Navigate back to task details if editing, otherwise to list items
+    if (isEditing) {
+      router.push({
+        pathname: '/todo/task-details',
+        params: { id: editId }
+      });
+    } else {
+      router.push({
+        pathname: '/todo/list-items',
+        params: { listId: selectedListId }
+      });
+    }
   };
 
   const navigateToDetails = () => {
@@ -116,7 +240,24 @@ export default function NewReminder() {
         title: title,
         notes: notes,
         listId: selectedListId,
-        isNew: 'true'
+        isNew: isEditing ? 'false' : 'true',
+        editId: isEditing ? editId : undefined,
+        // Pass current Pomodoro settings
+        pomodoroEnabled: pomodoroEnabled.toString(),
+        workTime: workTime.toString(),
+        workUnit: workUnit,
+        breakTime: breakTime.toString(),
+        breakUnit: breakUnit,
+        // Pass current subtasks
+        subtasks: JSON.stringify(subtasks),
+        // Pass current priority and due date
+        priority: priority,
+        dueDate: selectedDate ? selectedDate.toISOString() : '',
+        // Pass current additional details
+        earlyReminder: earlyReminder,
+        repeat: repeat,
+        location: location,
+        url: url
       }
     });
   };
@@ -131,7 +272,20 @@ export default function NewReminder() {
         notes: notes,
         subtasks: JSON.stringify(subtasks),
         priority: priority,
-        dueDate: selectedDate ? selectedDate.toISOString() : ''
+        dueDate: selectedDate ? selectedDate.toISOString() : '',
+        pomodoroEnabled: pomodoroEnabled.toString(),
+        workTime: workTime.toString(),
+        workUnit: workUnit,
+        breakTime: breakTime.toString(),
+        breakUnit: breakUnit,
+        // Preserve edit context
+        editId: editId,
+        isEditing: isEditing.toString(),
+        // Preserve additional details
+        earlyReminder: earlyReminder,
+        repeat: repeat,
+        location: location,
+        url: url
       }
     });
   };
@@ -231,11 +385,11 @@ export default function NewReminder() {
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>New Reminder</Text>
+        <Text style={styles.title}>{isEditing ? 'Edit Task' : 'New Reminder'}</Text>
         <TouchableOpacity onPress={save} disabled={!title.trim()}>
-          <Text style={[styles.addButton, !title.trim() && styles.addButtonDisabled]}>
-            Add
-          </Text>
+                      <Text style={[styles.addButton, !title.trim() && styles.addButtonDisabled]}>
+              {isEditing ? 'Save' : 'Add'}
+            </Text>
         </TouchableOpacity>
       </View>
 
@@ -245,7 +399,7 @@ export default function NewReminder() {
         <View style={styles.inputContainer}>
           <View style={styles.titleRow}>
             <TextInput
-              style={[styles.titleInput, {borderBottomWidth: 1, borderBottomColor: "#bababa"}]}
+              style={[styles.titleInput, {borderColor: "#bababa"}]}
               placeholder="Title"
               placeholderTextColor={"#bababa"}
               value={title}
@@ -339,6 +493,20 @@ export default function NewReminder() {
           </View>
         </TouchableOpacity>
       </View>
+
+      {/* Pomodoro Settings */}
+      <PomodoroSettings
+        enabled={pomodoroEnabled}
+        onToggle={setPomodoroEnabled}
+        workTime={workTime}
+        onWorkTimeChange={setWorkTime}
+        workUnit={workUnit}
+        onWorkUnitChange={setWorkUnit}
+        breakTime={breakTime}
+        onBreakTimeChange={setBreakTime}
+        breakUnit={breakUnit}
+        onBreakUnitChange={setBreakUnit}
+      />
 
       {/* Keyboard Accessories */}
       <View style={styles.keyboardAccessories}>

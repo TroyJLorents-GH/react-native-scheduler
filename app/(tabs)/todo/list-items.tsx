@@ -26,8 +26,19 @@ export default function ListItems() {
           color={item.done ? '#67c99a' : '#bbb'} 
         />
       </TouchableOpacity>
+      {item.pomodoro?.enabled && (
+        <Ionicons 
+          name="timer-outline" 
+          size={16} 
+          color="#FF6B6B" 
+          style={{ marginRight: 6, marginTop: 4 }}
+        />
+      )}
       
-      <View style={styles.todoContent}>
+      <TouchableOpacity 
+        style={styles.todoContent}
+        onPress={() => router.push({ pathname: '/todo/task-details', params: { id: item.id } })}
+      >
         <Text style={[styles.todoText, item.done && styles.doneText]}>
           {item.text}
         </Text>
@@ -67,7 +78,7 @@ export default function ListItems() {
             ))}
           </View>
         )}
-      </View>
+      </TouchableOpacity>
     </View>
   );
 

@@ -21,7 +21,21 @@ export default function ListPickerScreen() {
         notes: params.notes || '',
         subtasks: params.subtasks || '',
         priority: params.priority || 'medium',
-        dueDate: params.dueDate || ''
+        dueDate: params.dueDate || '',
+        // Preserve edit context
+        editId: params.editId || '',
+        isEditing: params.isEditing || 'false',
+        // Preserve Pomodoro settings
+        pomodoroEnabled: params.pomodoroEnabled || '',
+        workTime: params.workTime || '',
+        workUnit: params.workUnit || '',
+        breakTime: params.breakTime || '',
+        breakUnit: params.breakUnit || '',
+        // Preserve additional details
+        earlyReminder: params.earlyReminder || '',
+        repeat: params.repeat || '',
+        location: params.location || '',
+        url: params.url || ''
       }
     });
   };

@@ -15,6 +15,7 @@ export default function TodoStackLayout() {
       <Stack.Screen name="list-picker" />
       <Stack.Screen name="test" />
       <Stack.Screen name="list-items" />   {/* list items */}
+      <Stack.Screen name="task-details" /> {/* task details with pomodoro */}
       <Stack.Screen name="[id]" />         {/* individual todo details */}
     </Stack>
   );

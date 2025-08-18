@@ -39,6 +39,7 @@ import { Slot } from 'expo-router';
 import React from 'react';
 import { EventProvider } from '../context/EventContext';
 import { ListProvider } from '../context/ListContext';
+import { TempDetailsProvider } from '../context/TempDetailsContext';
 import { TodoProvider } from '../context/TodoContext';
 
 
@@ -47,7 +48,9 @@ export default function RootLayout() {
     <EventProvider>
       <ListProvider>
         <TodoProvider>
-          <Slot />
+          <TempDetailsProvider>
+            <Slot />
+          </TempDetailsProvider>
         </TodoProvider>
       </ListProvider>
     </EventProvider>

@@ -1,4 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import moment from 'moment';
 import React from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -67,12 +68,23 @@ export default function SmartListScreen({ filter, title }: { filter: (todo: any)
                 style={{ marginRight: 9 }}
               />
             </TouchableOpacity>
-            <View style={{ flex: 1 }}>
+            {item.pomodoro?.enabled && (
+              <Ionicons 
+                name="timer-outline" 
+                size={16} 
+                color="#FF6B6B" 
+                style={{ marginRight: 6 }}
+              />
+            )}
+            <TouchableOpacity 
+              style={{ flex: 1 }}
+              onPress={() => router.push({ pathname: '/todo/task-details', params: { id: item.id } })}
+            >
               <Text style={[styles.todoText, item.done && styles.doneText]}>{item.text}</Text>
               {item.notes && (
                 <Text style={styles.notesText}>{item.notes}</Text>
               )}
-            </View>
+            </TouchableOpacity>
             {item.dueDate && (
               <View style={{ marginLeft: 6, flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="calendar-outline" size={17} color="#9ad0f5" style={{ marginRight: 2 }} />
