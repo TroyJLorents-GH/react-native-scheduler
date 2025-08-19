@@ -1,9 +1,9 @@
-import { useTempDetailsContext } from '@/context/TempDetailsContext';
 import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, Platform, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 export default function DetailsScreen() {
@@ -11,7 +11,6 @@ export default function DetailsScreen() {
   const { title, notes, listId, isNew, editId } = params;
   const isEditing = isNew === 'false';
   const { updateTodo, todos } = useTodoContext();
-  const { setTempDetails } = useTempDetailsContext();
 
   // Get existing todo data when editing
   const existingTodo = isEditing && editId ? todos.find(t => t.id === editId) : null;
@@ -32,9 +31,9 @@ export default function DetailsScreen() {
   );
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [earlyReminder, setEarlyReminder] = useState(existingTodo?.earlyReminder || 'None');
-  const [repeat, setRepeat] = useState(existingTodo?.repeat || 'Never');
-  const [locationEnabled, setLocationEnabled] = useState(!!existingTodo?.location);
+  const [earlyReminder, setEarlyReminder] = useState(existingTodo?.earlyReminder || String(params.earlyReminder || 'None'));
+  const [repeat, setRepeat] = useState(existingTodo?.repeat || String(params.repeat || 'Never'));
+  const [locationEnabled, setLocationEnabled] = useState(!!existingTodo?.location || !!params.location);
   const [flagEnabled, setFlagEnabled] = useState(false);
   const [priority, setPriority] = useState(String(existingTodo?.priority || params.priority || 'medium'));
   const [tags, setTags] = useState<string[]>([]);
@@ -44,6 +43,44 @@ export default function DetailsScreen() {
   const [showTagsModal, setShowTagsModal] = useState(false);
   const [showPriorityModal, setShowPriorityModal] = useState(false);
   const [showEarlyReminderModal, setShowEarlyReminderModal] = useState(false);
+
+  // Update state when parameters change (for when returning from new reminder page)
+  React.useEffect(() => {
+    // Update date and time settings
+    if (params.dueDate) {
+      const date = new Date(String(params.dueDate));
+      setSelectedDate(date);
+      setDateEnabled(true);
+      
+      // Check if there's a specific time
+      if (params.dueTime) {
+        const time = new Date(String(params.dueTime));
+        setSelectedTime(time);
+        setTimeEnabled(true);
+      } else {
+        // Check if the date has a specific time (not midnight)
+        const hasTime = date.getHours() !== 0;
+        setTimeEnabled(hasTime);
+        if (hasTime) {
+          setSelectedTime(date);
+        }
+      }
+    }
+    
+    // Update other settings - make sure to handle empty strings properly
+    if (params.earlyReminder && params.earlyReminder !== '') {
+      setEarlyReminder(String(params.earlyReminder));
+    }
+    if (params.repeat && params.repeat !== '') {
+      setRepeat(String(params.repeat));
+    }
+    if (params.priority && params.priority !== '') {
+      setPriority(String(params.priority));
+    }
+    if (params.location && params.location !== '') {
+      setLocationEnabled(true);
+    }
+  }, [params.dueDate, params.dueTime, params.earlyReminder, params.repeat, params.priority, params.location]);
 
   const formatDate = (date: Date) => {
     const today = new Date();
@@ -90,20 +127,35 @@ export default function DetailsScreen() {
         params: { id: editId }
       });
     } else {
-      // When creating new, store details temporarily and navigate back
-      const details = {
-        dueDate: dateEnabled ? selectedDate : undefined,
-        dueTime: timeEnabled ? selectedTime : undefined,
-        priority: priority !== 'None' ? priority as 'high' | 'medium' | 'low' : undefined,
-        earlyReminder: earlyReminder !== 'None' ? earlyReminder : undefined,
-        repeat: repeat !== 'Never' ? repeat : undefined,
-        location: locationEnabled ? 'Location set' : undefined,
-      };
-      
-      // Store details in context
-      setTempDetails(details);
-      
-      router.back();
+      // When creating new, navigate back with all the details as parameters
+      router.replace({
+        pathname: '/todo/new',
+        params: {
+          detailsSaved: 'true',
+          // Pass back all the current form data
+          title: String(params.title || ''),
+          notes: String(params.notes || ''),
+          listId: String(params.listId || ''),
+          subtasks: String(params.subtasks || ''),
+          // Pass back the details that were just set
+          dueDate: dateEnabled ? selectedDate.toISOString() : '',
+          dueTime: timeEnabled ? selectedTime.toISOString() : '',
+          priority: priority,
+          earlyReminder: earlyReminder,
+          repeat: repeat,
+          location: locationEnabled ? 'Location set' : '',
+          url: String(params.url || ''),
+          // Preserve Pomodoro settings
+          pomodoroEnabled: String(params.pomodoroEnabled || ''),
+          workTime: String(params.workTime || ''),
+          workUnit: String(params.workUnit || ''),
+          breakTime: String(params.breakTime || ''),
+          breakUnit: String(params.breakUnit || ''),
+          // Preserve edit context
+          editId: String(params.editId || ''),
+          isEditing: String(params.isEditing || 'false'),
+        }
+      });
     }
   };
 
@@ -124,7 +176,16 @@ export default function DetailsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
+      <KeyboardAwareScrollView 
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+        enableOnAndroid={true}
+        enableAutomaticScroll={true}
+        keyboardShouldPersistTaps="handled"
+        extraScrollHeight={Platform.OS === 'ios' ? 20 : 0}
+        extraHeight={Platform.OS === 'ios' ? 100 : 0}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Date Section */}
         <View style={styles.section}>
           <View style={styles.row}>
@@ -283,7 +344,7 @@ export default function DetailsScreen() {
         <View style={styles.section}>
           <Text style={styles.urlText}>URL</Text>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       {/* Date Picker Modal */}
       <DateTimePickerModal
@@ -312,7 +373,7 @@ export default function DetailsScreen() {
       {/* Repeat Modal */}
       <Modal
         visible={showRepeatModal}
-        transparent
+        transparent={true}
         animationType="slide"
         onRequestClose={() => setShowRepeatModal(false)}
       >
@@ -321,7 +382,7 @@ export default function DetailsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Repeat</Text>
               <TouchableOpacity onPress={() => setShowRepeatModal(false)}>
-                <Text style={styles.modalDone}>Done</Text>
+                <Text style={styles.modalDoneButton}>Done</Text>
               </TouchableOpacity>
             </View>
             {repeatOptions.map((option) => (
@@ -333,9 +394,14 @@ export default function DetailsScreen() {
                   setShowRepeatModal(false);
                 }}
               >
-                <Text style={styles.modalOptionText}>{option}</Text>
+                <Text style={[
+                  styles.modalOptionText,
+                  repeat === option && styles.modalOptionTextSelected
+                ]}>
+                  {option}
+                </Text>
                 {repeat === option && (
-                  <Ionicons name="checkmark" size={24} color="#007AFF" />
+                  <Ionicons name="checkmark" size={20} color="#007AFF" />
                 )}
               </TouchableOpacity>
             ))}
@@ -346,7 +412,7 @@ export default function DetailsScreen() {
       {/* Priority Modal */}
       <Modal
         visible={showPriorityModal}
-        transparent
+        transparent={true}
         animationType="slide"
         onRequestClose={() => setShowPriorityModal(false)}
       >
@@ -355,7 +421,7 @@ export default function DetailsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Priority</Text>
               <TouchableOpacity onPress={() => setShowPriorityModal(false)}>
-                <Text style={styles.modalDone}>Done</Text>
+                <Text style={styles.modalDoneButton}>Done</Text>
               </TouchableOpacity>
             </View>
             {priorityOptions.map((option) => (
@@ -367,9 +433,14 @@ export default function DetailsScreen() {
                   setShowPriorityModal(false);
                 }}
               >
-                <Text style={styles.modalOptionText}>{option}</Text>
+                <Text style={[
+                  styles.modalOptionText,
+                  priority === option && styles.modalOptionTextSelected
+                ]}>
+                  {option}
+                </Text>
                 {priority === option && (
-                  <Ionicons name="checkmark" size={24} color="#007AFF" />
+                  <Ionicons name="checkmark" size={20} color="#007AFF" />
                 )}
               </TouchableOpacity>
             ))}
@@ -380,7 +451,7 @@ export default function DetailsScreen() {
       {/* Early Reminder Modal */}
       <Modal
         visible={showEarlyReminderModal}
-        transparent
+        transparent={true}
         animationType="slide"
         onRequestClose={() => setShowEarlyReminderModal(false)}
       >
@@ -389,7 +460,7 @@ export default function DetailsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Early Reminder</Text>
               <TouchableOpacity onPress={() => setShowEarlyReminderModal(false)}>
-                <Text style={styles.modalDone}>Done</Text>
+                <Text style={styles.modalDoneButton}>Done</Text>
               </TouchableOpacity>
             </View>
             {earlyReminderOptions.map((option) => (
@@ -401,9 +472,14 @@ export default function DetailsScreen() {
                   setShowEarlyReminderModal(false);
                 }}
               >
-                <Text style={styles.modalOptionText}>{option}</Text>
+                <Text style={[
+                  styles.modalOptionText,
+                  earlyReminder === option && styles.modalOptionTextSelected
+                ]}>
+                  {option}
+                </Text>
                 {earlyReminder === option && (
-                  <Ionicons name="checkmark" size={24} color="#007AFF" />
+                  <Ionicons name="checkmark" size={20} color="#007AFF" />
                 )}
               </TouchableOpacity>
             ))}
@@ -414,7 +490,7 @@ export default function DetailsScreen() {
       {/* Tags Modal */}
       <Modal
         visible={showTagsModal}
-        transparent
+        transparent={true}
         animationType="slide"
         onRequestClose={() => setShowTagsModal(false)}
       >
@@ -423,10 +499,10 @@ export default function DetailsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Tags</Text>
               <TouchableOpacity onPress={() => setShowTagsModal(false)}>
-                <Text style={styles.modalDone}>Done</Text>
+                <Text style={styles.modalDoneButton}>Done</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.modalNote}>Tag functionality will be implemented with a proper tag management system</Text>
+            <Text style={styles.modalNote}>Tag functionality will be implemented soon</Text>
           </View>
         </View>
       </Modal>
@@ -438,6 +514,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  content: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   header: {
     flexDirection: 'row',
@@ -455,23 +538,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   addButton: {
-    color: '#fff',
+    color: '#007AFF',
     fontSize: 17,
     fontWeight: '600',
   },
-  content: {
-    flex: 1,
-  },
   section: {
     backgroundColor: '#1c1c1e',
-    marginBottom: 1,
-    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 10,
+    padding: 16,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
   },
   rowLeft: {
     flexDirection: 'row',
@@ -488,17 +569,9 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
   rowSubtitle: {
-    color: '#007AFF',
-    fontSize: 17,
-    fontWeight: '400',
-    marginTop: 2,
-  },
-  rowDescription: {
     color: '#8e8e93',
     fontSize: 15,
-    fontWeight: '400',
     marginTop: 2,
-    lineHeight: 20,
   },
   rowRight: {
     flexDirection: 'row',
@@ -507,37 +580,37 @@ const styles = StyleSheet.create({
   rowValue: {
     color: '#8e8e93',
     fontSize: 17,
-    fontWeight: '400',
     marginRight: 8,
   },
   datePickerButton: {
+    marginTop: 12,
     paddingVertical: 12,
-    borderTopWidth: 0.5,
-    borderTopColor: '#38383a',
+    paddingHorizontal: 16,
+    backgroundColor: '#2c2c2e',
+    borderRadius: 8,
+    alignItems: 'center',
   },
   datePickerText: {
     color: '#007AFF',
-    fontSize: 17,
-    fontWeight: '400',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  locationNote: {
+    color: '#8e8e93',
+    fontSize: 14,
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   addImageText: {
     color: '#007AFF',
     fontSize: 17,
     fontWeight: '400',
-    paddingVertical: 12,
+    textAlign: 'center',
   },
   urlText: {
     color: '#8e8e93',
     fontSize: 17,
     fontWeight: '400',
-    paddingVertical: 12,
-  },
-  locationNote: {
-    color: '#8e8e93',
-    fontSize: 14,
-    fontWeight: '400',
-    paddingVertical: 8,
-    paddingTop: 0,
   },
   modalOverlay: {
     flex: 1,
@@ -548,7 +621,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1c1c1e',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 50,
+    paddingBottom: 34,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -563,7 +636,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
   },
-  modalDone: {
+  modalDoneButton: {
     color: '#007AFF',
     fontSize: 17,
     fontWeight: '600',
@@ -581,11 +654,14 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '400',
   },
+  modalOptionTextSelected: {
+    color: '#007AFF',
+  },
   modalNote: {
     color: '#8e8e93',
-    fontSize: 15,
-    fontWeight: '400',
-    padding: 16,
+    fontSize: 16,
     textAlign: 'center',
+    padding: 20,
+    fontStyle: 'italic',
   },
 });

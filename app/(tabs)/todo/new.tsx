@@ -1,13 +1,11 @@
 import PomodoroSettings from '@/components/PomodoroSettings';
 import { useListContext } from '@/context/ListContext';
-import { useTempDetailsContext } from '@/context/TempDetailsContext';
 import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Alert,
-  KeyboardAvoidingView,
   Platform,
   StyleSheet,
   Text,
@@ -15,12 +13,12 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 export default function NewReminder() {
   const { addTodo, updateTodo, todos } = useTodoContext();
   const { lists } = useListContext();
-  const { tempDetails, setTempDetails } = useTempDetailsContext();
   const params = useLocalSearchParams();
 
   
@@ -58,6 +56,11 @@ export default function NewReminder() {
       if (params.workUnit) setWorkUnit(String(params.workUnit) as 'min' | 'hour');
       if (params.breakTime) setBreakTime(Number(params.breakTime));
       if (params.breakUnit) setBreakUnit(String(params.breakUnit) as 'min' | 'hour');
+      // Restore additional details
+      if (params.earlyReminder) setEarlyReminder(String(params.earlyReminder));
+      if (params.repeat) setRepeat(String(params.repeat));
+      if (params.location) setLocation(String(params.location));
+      if (params.url) setUrl(String(params.url));
     }
     
     // Restore form data when returning from details page
@@ -101,28 +104,6 @@ export default function NewReminder() {
       if (params.breakUnit) setBreakUnit(String(params.breakUnit) as 'min' | 'hour');
     }
   }, [params.preSelectedListId, params.fromListPicker, params.detailsSaved, params.editId, params.title, params.notes, params.priority, params.dueDate, params.dueTime, params.subtasks, params.earlyReminder, params.repeat, params.location, params.url, params.pomodoroEnabled, params.workTime, params.workUnit, params.breakTime, params.breakUnit]);
-
-  // Apply temp details when they exist
-  React.useEffect(() => {
-    if (tempDetails && !isEditing) {
-      if (tempDetails.dueDate) {
-        let date = new Date(tempDetails.dueDate);
-        if (tempDetails.dueTime) {
-          const time = new Date(tempDetails.dueTime);
-          date.setHours(time.getHours(), time.getMinutes(), 0, 0);
-        }
-        setSelectedDate(date);
-      }
-      if (tempDetails.priority) setPriority(tempDetails.priority);
-      if (tempDetails.earlyReminder) setEarlyReminder(tempDetails.earlyReminder);
-      if (tempDetails.repeat) setRepeat(tempDetails.repeat);
-      if (tempDetails.location) setLocation(tempDetails.location);
-      
-      // Clear temp details after applying them
-      setTempDetails(null);
-    }
-  }, [tempDetails, isEditing, setTempDetails]);
-
 
   const [subtasks, setSubtasks] = useState<Array<{id: string, text: string, done: boolean, listId: string, createdAt: Date}>>(existingTodo?.subTasks || []);
   const [showSubtasks, setShowSubtasks] = useState(false);
@@ -253,6 +234,7 @@ export default function NewReminder() {
         // Pass current priority and due date
         priority: priority,
         dueDate: selectedDate ? selectedDate.toISOString() : '',
+        dueTime: selectedDate ? selectedDate.toISOString() : '', // Add dueTime parameter
         // Pass current additional details
         earlyReminder: earlyReminder,
         repeat: repeat,
@@ -375,10 +357,15 @@ export default function NewReminder() {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    <KeyboardAwareScrollView 
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      enableOnAndroid={true}
+      enableAutomaticScroll={true}
+      keyboardShouldPersistTaps="handled"
+      extraScrollHeight={Platform.OS === 'ios' ? 20 : 0}
+      extraHeight={Platform.OS === 'ios' ? 100 : 0}
+      showsVerticalScrollIndicator={false}
     >
       {/* Header */}
       <View style={styles.header}>
@@ -387,9 +374,9 @@ export default function NewReminder() {
         </TouchableOpacity>
         <Text style={styles.title}>{isEditing ? 'Edit Task' : 'New Reminder'}</Text>
         <TouchableOpacity onPress={save} disabled={!title.trim()}>
-                      <Text style={[styles.addButton, !title.trim() && styles.addButtonDisabled]}>
-              {isEditing ? 'Save' : 'Add'}
-            </Text>
+          <Text style={[styles.addButton, !title.trim() && styles.addButtonDisabled]}>
+            {isEditing ? 'Save' : 'Add'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -547,7 +534,7 @@ export default function NewReminder() {
         onConfirm={handleDateConfirm}
         onCancel={hideDatePicker}
       />
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   );
 }
 
@@ -555,6 +542,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   header: {
     flexDirection: 'row',
