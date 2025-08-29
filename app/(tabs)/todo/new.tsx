@@ -2,10 +2,13 @@ import PomodoroSettings from '@/components/PomodoroSettings';
 import { useListContext } from '@/context/ListContext';
 import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system';
+import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Alert,
+  Image,
   Platform,
   StyleSheet,
   Text,
@@ -17,6 +20,8 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 export default function NewReminder() {
+  console.log('=== NEW REMINDER RENDERED ===');
+  
   const { addTodo, updateTodo, todos } = useTodoContext();
   const { lists } = useListContext();
   const params = useLocalSearchParams();
@@ -121,7 +126,9 @@ export default function NewReminder() {
   const [earlyReminder, setEarlyReminder] = useState(existingTodo?.earlyReminder || 'None');
   const [repeat, setRepeat] = useState(existingTodo?.repeat || 'Never');
   const [location, setLocation] = useState(existingTodo?.location || '');
+  const [locationCoords, setLocationCoords] = useState(existingTodo?.locationCoords || '');
   const [url, setUrl] = useState(existingTodo?.url || '');
+  const [images, setImages] = useState<string[]>(existingTodo?.images || []);
   
   // Pomodoro state
   const [pomodoroEnabled, setPomodoroEnabled] = useState(existingTodo?.pomodoro?.enabled || false);
@@ -131,6 +138,7 @@ export default function NewReminder() {
   const [breakUnit, setBreakUnit] = useState<'min' | 'hour'>(existingTodo?.pomodoro?.breakUnit || 'min');
 
   const selectedList = lists.find(list => list.id === selectedListId);
+  const [showDateChips, setShowDateChips] = useState(false);
 
   const save = () => {
     if (!title.trim()) return;
@@ -147,7 +155,9 @@ export default function NewReminder() {
         earlyReminder: earlyReminder !== 'None' ? earlyReminder : undefined,
         repeat: repeat !== 'Never' ? repeat : undefined,
         location: location || undefined,
+        locationCoords: locationCoords || undefined,
         url: url || undefined,
+        images: images.length ? images : undefined,
         pomodoro: pomodoroEnabled ? {
           enabled: true,
           workTime,
@@ -171,7 +181,9 @@ export default function NewReminder() {
         earlyReminder: earlyReminder !== 'None' ? earlyReminder : undefined,
         repeat: repeat !== 'Never' ? repeat : undefined,
         location: location || undefined,
+        locationCoords: locationCoords || undefined,
         url: url || undefined,
+        images: images.length ? images : undefined,
         pomodoro: pomodoroEnabled ? {
           enabled: true,
           workTime,
@@ -197,7 +209,9 @@ export default function NewReminder() {
     setEarlyReminder('None');
     setRepeat('Never');
     setLocation('');
+    setLocationCoords('');
     setUrl('');
+    setImages([]);
     
     // Navigate back to task details if editing, otherwise to list items
     if (isEditing) {
@@ -213,7 +227,7 @@ export default function NewReminder() {
     }
   };
 
-  const navigateToDetails = () => {
+  const navigateToDetails = (options?: { openLocation?: boolean }) => {
     // Navigate to details page with the current todo data
     router.push({
       pathname: '/todo/details',
@@ -239,7 +253,8 @@ export default function NewReminder() {
         earlyReminder: earlyReminder,
         repeat: repeat,
         location: location,
-        url: url
+        url: url,
+        ...(options?.openLocation ? { openLocation: 'true' } : {}),
       }
     });
   };
@@ -303,6 +318,7 @@ export default function NewReminder() {
     const today = new Date();
     today.setHours(23, 59, 0, 0);
     setSelectedDate(today);
+    setShowDateChips(false);
   };
 
   const setTomorrow = () => {
@@ -310,6 +326,7 @@ export default function NewReminder() {
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(23, 59, 0, 0);
     setSelectedDate(tomorrow);
+    setShowDateChips(false);
   };
 
   const setThisWeekend = () => {
@@ -319,6 +336,7 @@ export default function NewReminder() {
     saturday.setDate(today.getDate() + daysUntilSaturday);
     saturday.setHours(23, 59, 0, 0);
     setSelectedDate(saturday);
+    setShowDateChips(false);
   };
 
   const setNextWeek = () => {
@@ -326,22 +344,10 @@ export default function NewReminder() {
     nextWeek.setDate(nextWeek.getDate() + 7);
     nextWeek.setHours(23, 59, 0, 0);
     setSelectedDate(nextWeek);
+    setShowDateChips(false);
   };
 
-  const showQuickDateOptions = () => {
-    Alert.alert(
-      'Quick Date',
-      'Select a date',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Today', onPress: setToday },
-        { text: 'Tomorrow', onPress: setTomorrow },
-        { text: 'This Weekend', onPress: setThisWeekend },
-        { text: 'Next Week', onPress: setNextWeek },
-        { text: 'Custom', onPress: showDatePicker },
-      ]
-    );
-  };
+  const showQuickDateOptions = () => setShowDateChips(prev => !prev);
 
   const showPriorityOptions = () => {
     Alert.alert(
@@ -354,6 +360,90 @@ export default function NewReminder() {
         { text: 'Low', onPress: () => setPriority('low') },
       ]
     );
+  };
+
+  // Photo accessory handlers
+  const ensureMediaLibraryPermission = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Please allow Photos access to pick images.');
+      return false;
+    }
+    return true;
+  };
+
+  const ensureCameraPermission = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Please allow Camera access to take photos.');
+      return false;
+    }
+    return true;
+  };
+
+  const pickFromLibrary = async () => {
+    const ok = await ensureMediaLibraryPermission();
+    if (!ok) return;
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        allowsMultipleSelection: true,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.9,
+        selectionLimit: 5,
+      });
+      if (!result.canceled) {
+        const uris = result.assets?.map(a => a.uri).filter(Boolean) as string[];
+        setImages(prev => Array.from(new Set([...prev, ...uris])));
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Could not open photo library.');
+    }
+  };
+
+  const takePhoto = async () => {
+    const ok = await ensureCameraPermission();
+    if (!ok) return;
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        quality: 0.9,
+      });
+      if (!result.canceled && result.assets && result.assets[0]?.uri) {
+        const src = result.assets![0]!.uri;
+        // Ensure app photos directory exists
+        const photosDir = FileSystem.documentDirectory + 'photos/';
+        try { await FileSystem.makeDirectoryAsync(photosDir, { intermediates: true }); } catch {}
+        const dest = photosDir + `photo_${Date.now()}.jpg`;
+        try {
+          await FileSystem.copyAsync({ from: src, to: dest });
+          setImages(prev => Array.from(new Set([...prev, dest])));
+        } catch (e) {
+          // Fall back to original uri if copy fails
+          setImages(prev => Array.from(new Set([...prev, src])));
+        }
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Could not open camera.');
+    }
+  };
+
+  const showPhotoOptions = () => {
+    Alert.alert(
+      'Add Photo',
+      undefined,
+      [
+        { text: 'Take Photo', onPress: takePhoto },
+        { text: 'Photo Library', onPress: pickFromLibrary },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const removeImage = async (uri: string) => {
+    setImages(prev => prev.filter(u => u !== uri));
+    // Attempt to delete file if it's stored in our documents directory
+    if (uri.startsWith(FileSystem.documentDirectory || '')) {
+      try { await FileSystem.deleteAsync(uri, { idempotent: true }); } catch {}
+    }
   };
 
   return (
@@ -369,7 +459,10 @@ export default function NewReminder() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => {
+          // Navigate directly to the todo dashboard
+          router.push('/todo');
+        }}>
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
         <Text style={styles.title}>{isEditing ? 'Edit Task' : 'New Reminder'}</Text>
@@ -459,7 +552,7 @@ export default function NewReminder() {
         </View>
 
         {/* Details Row */}
-        <TouchableOpacity style={styles.detailRow} onPress={navigateToDetails}>
+        <TouchableOpacity style={styles.detailRow} onPress={() => navigateToDetails()}>
           <Text style={styles.detailText}>Details</Text>
           <Ionicons name="chevron-forward" size={20} color="#8e8e93" />
         </TouchableOpacity>
@@ -509,15 +602,12 @@ export default function NewReminder() {
             {priority === 'high' ? 'High' : priority === 'medium' ? 'Priority' : 'Low'}
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.accessoryButton}>
-          <Ionicons name="pricetag" size={20} color="#8e8e93" />
-          <Text style={styles.accessoryText}>#</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.accessoryButton}>
+        {/* Tags accessory removed for simpler UX */}
+        <TouchableOpacity style={styles.accessoryButton} onPress={() => navigateToDetails({ openLocation: true })}>
           <Ionicons name="location" size={20} color="#007AFF" />
           <Text style={styles.accessoryText}>Location</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.accessoryButton}>
+        <TouchableOpacity style={styles.accessoryButton} onPress={showPhotoOptions}>
           <Ionicons name="camera" size={20} color="#34C759" />
           <Text style={styles.accessoryText}>Photo</Text>
         </TouchableOpacity>
@@ -526,6 +616,38 @@ export default function NewReminder() {
           <Text style={styles.accessoryText}>Lists</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Inline Date Chips */}
+      {showDateChips && (
+        <View style={styles.dateChipsRow}>
+          <TouchableOpacity style={styles.dateChip} onPress={setToday}>
+            <Text style={styles.dateChipText}>Today</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.dateChip} onPress={setTomorrow}>
+            <Text style={styles.dateChipText}>Tomorrow</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.dateChip} onPress={setThisWeekend}>
+            <Text style={styles.dateChipText}>This Weekend</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.dateChip} onPress={() => { setShowDateChips(false); showDatePicker(); }}>
+            <Text style={styles.dateChipText}>Date & Time</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Image Preview Grid */}
+      {images.length > 0 && (
+        <View style={styles.imagesGrid}>
+          {images.map((uri) => (
+            <View key={uri} style={styles.imageItem}>
+              <Image source={{ uri }} style={styles.imageThumb} />
+              <TouchableOpacity style={styles.imageRemove} onPress={() => removeImage(uri)}>
+                <Ionicons name="close" size={14} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      )}
 
       {/* Date Picker Modal */}
       <DateTimePickerModal
@@ -653,6 +775,59 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '400',
     marginTop: 4,
+  },
+  dateChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
+    backgroundColor: '#1c1c1e',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#38383a',
+  },
+  dateChip: {
+    backgroundColor: '#2c2c2e',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  dateChipText: {
+    color: '#fff',
+    fontSize: 14,
+  },
+  imagesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  imageItem: {
+    width: 72,
+    height: 72,
+    borderRadius: 8,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#1c1c1e',
+  },
+  imageThumb: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  imageRemove: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   titleRow: {
     flexDirection: 'row',

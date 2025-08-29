@@ -4,14 +4,15 @@ import { useListContext } from '@/context/ListContext';
 import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
+import moment from 'moment';
 import React, { useMemo, useState } from 'react';
 import {
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 
@@ -19,6 +20,7 @@ export default function TodoDashboard() {
   const { todos } = useTodoContext();
   const { lists, deleteList } = useListContext();
   
+  console.log('=== TODO DASHBOARD RENDERED ===');
   console.log('TodoDashboard - todos:', todos.length, 'lists:', lists.length);
 
   // --- derived counts for the cards ---
@@ -26,14 +28,18 @@ export default function TodoDashboard() {
     const all = todos.filter(t => !t.done).length; // Only active todos
     const scheduled = todos.filter(t => !!t.dueDate && !t.done).length;
     const completed = todos.filter(t => t.done).length;
-    const favorites = todos.filter(t => t.favorite && !t.done).length; // Only active favorites
+    const todaysTasks = todos.filter(t => {
+      if (t.done) return false; // Skip completed todos
+      if (!t.dueDate) return false; // Skip todos without due dates
+      return moment(t.dueDate).isSame(moment(), 'day'); // Check if due today
+    }).length;
     const priority = todos.filter(t => t.priority === 'high' && !t.done).length; // Only active high priority
     const listCountsMap: Record<string, number> = {};
     lists.forEach(l => {
       listCountsMap[l.id] = todos.filter(t => t.listId === l.id && !t.done).length;
     });
     return {
-      all, scheduled, completed, favorites, priority,
+      all, scheduled, completed, todaysTasks, priority,
       lists: lists.length,
       perList: listCountsMap,
     };
@@ -55,7 +61,6 @@ export default function TodoDashboard() {
           <DashCard label="All"        count={counts.all}        href="/todo/all" />
           <DashCard label="Scheduled"  count={counts.scheduled}  href="/todo/scheduled" />
           <DashCard label="Completed"  count={counts.completed}  href="/todo/completed" />
-          <DashCard label="Favorites"  count={counts.favorites}  href="/todo/favorites" />
           <DashCard label="Priority"   count={counts.priority}   href="/todo/priority" />
           <DashCard label="Lists"      count={counts.lists}      href="/todo/lists" />
         </View>

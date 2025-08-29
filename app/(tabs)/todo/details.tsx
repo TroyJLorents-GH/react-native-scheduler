@@ -1,3 +1,4 @@
+import LocationSearchModal from '@/components/LocationSearchModal';
 import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -8,7 +9,7 @@ import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 export default function DetailsScreen() {
   const params = useLocalSearchParams();
-  const { title, notes, listId, isNew, editId } = params;
+  const { title, notes, listId, isNew, editId, openLocation } = params as any;
   const isEditing = isNew === 'false';
   const { updateTodo, todos } = useTodoContext();
 
@@ -34,15 +35,32 @@ export default function DetailsScreen() {
   const [earlyReminder, setEarlyReminder] = useState(existingTodo?.earlyReminder || String(params.earlyReminder || 'None'));
   const [repeat, setRepeat] = useState(existingTodo?.repeat || String(params.repeat || 'Never'));
   const [locationEnabled, setLocationEnabled] = useState(!!existingTodo?.location || !!params.location);
-  const [flagEnabled, setFlagEnabled] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<{ latitude: number; longitude: number; address: string } | null>(
+    existingTodo?.location ? 
+      (() => {
+        // Try to parse existing location string for coordinates
+        const locationMatch = existingTodo.location.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+        if (locationMatch) {
+          const [, lat, lng] = locationMatch;
+          return {
+            latitude: parseFloat(lat),
+            longitude: parseFloat(lng),
+            address: existingTodo.location
+          };
+        }
+        return null;
+      })() : null
+  );
+
   const [priority, setPriority] = useState(String(existingTodo?.priority || params.priority || 'medium'));
-  const [tags, setTags] = useState<string[]>([]);
+  // Tags removed for simplified UX
 
   // Modal states
   const [showRepeatModal, setShowRepeatModal] = useState(false);
-  const [showTagsModal, setShowTagsModal] = useState(false);
+  // Tags modal removed
   const [showPriorityModal, setShowPriorityModal] = useState(false);
   const [showEarlyReminderModal, setShowEarlyReminderModal] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
 
   // Update state when parameters change (for when returning from new reminder page)
   React.useEffect(() => {
@@ -79,6 +97,11 @@ export default function DetailsScreen() {
     }
     if (params.location && params.location !== '') {
       setLocationEnabled(true);
+    }
+    // Auto-open location modal when requested
+    if (openLocation === 'true') {
+      setLocationEnabled(true);
+      setShowLocationModal(true);
     }
   }, [params.dueDate, params.dueTime, params.earlyReminder, params.repeat, params.priority, params.location]);
 
@@ -118,7 +141,8 @@ export default function DetailsScreen() {
         priority: priority !== 'None' ? priority as 'high' | 'medium' | 'low' : undefined,
         earlyReminder: earlyReminder !== 'None' ? earlyReminder : undefined,
         repeat: repeat !== 'Never' ? repeat : undefined,
-        location: locationEnabled ? 'Location set' : undefined,
+        location: locationEnabled && selectedLocation ? selectedLocation.address : undefined,
+        locationCoords: locationEnabled && selectedLocation ? `${selectedLocation.latitude}, ${selectedLocation.longitude}` : undefined,
       });
       
       // Navigate to task details page
@@ -143,7 +167,7 @@ export default function DetailsScreen() {
           priority: priority,
           earlyReminder: earlyReminder,
           repeat: repeat,
-          location: locationEnabled ? 'Location set' : '',
+          location: locationEnabled && selectedLocation ? selectedLocation.address : '',
           url: String(params.url || ''),
           // Preserve Pomodoro settings
           pomodoroEnabled: String(params.pomodoroEnabled || ''),
@@ -272,19 +296,7 @@ export default function DetailsScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* Tags */}
-        <TouchableOpacity style={styles.section} onPress={() => setShowTagsModal(true)}>
-          <View style={styles.row}>
-            <View style={styles.rowLeft}>
-              <Ionicons name="pricetag" size={24} color="#8e8e93" />
-              <Text style={styles.rowTitle}>Tags</Text>
-            </View>
-            <View style={styles.rowRight}>
-              <Text style={styles.rowValue}>{tags.length > 0 ? `${tags.length} tag${tags.length > 1 ? 's' : ''}` : 'Add tags'}</Text>
-              <Ionicons name="chevron-forward" size={20} color="#8e8e93" />
-            </View>
-          </View>
-        </TouchableOpacity>
+        {/* Tags removed */}
 
         {/* Location */}
         <View style={styles.section}>
@@ -301,25 +313,22 @@ export default function DetailsScreen() {
             />
           </View>
           {locationEnabled && (
-            <Text style={styles.locationNote}>Location services will be implemented with Google Maps API</Text>
+            <TouchableOpacity 
+              style={styles.locationButton}
+              onPress={() => setShowLocationModal(true)}
+            >
+              <View style={styles.locationContent}>
+                <Ionicons name="location" size={20} color="#007AFF" />
+                <Text style={styles.locationText}>
+                  {selectedLocation ? selectedLocation.address : 'Select Location'}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color="#8e8e93" />
+              </View>
+            </TouchableOpacity>
           )}
         </View>
 
-        {/* Flag */}
-        <View style={styles.section}>
-          <View style={styles.row}>
-            <View style={styles.rowLeft}>
-              <Ionicons name="flag" size={24} color="#FF9500" />
-              <Text style={styles.rowTitle}>Flag</Text>
-            </View>
-            <Switch
-              value={flagEnabled}
-              onValueChange={setFlagEnabled}
-              trackColor={{ false: '#38383a', true: '#34C759' }}
-              thumbColor="#fff"
-            />
-          </View>
-        </View>
+
 
         {/* Priority */}
         <TouchableOpacity style={styles.section} onPress={() => setShowPriorityModal(true)}>
@@ -487,25 +496,30 @@ export default function DetailsScreen() {
         </View>
       </Modal>
 
-      {/* Tags Modal */}
-      <Modal
-        visible={showTagsModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowTagsModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Tags</Text>
-              <TouchableOpacity onPress={() => setShowTagsModal(false)}>
-                <Text style={styles.modalDoneButton}>Done</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.modalNote}>Tag functionality will be implemented soon</Text>
-          </View>
-        </View>
-      </Modal>
+      {/* Tags modal removed */}
+
+      {/* Location Search Modal */}
+      <LocationSearchModal
+        visible={showLocationModal}
+        onClose={() => setShowLocationModal(false)}
+        onLocationSelect={(location) => {
+          try {
+            console.log('Location selected in details:', location);
+            setSelectedLocation(location);
+            // Store both the address and coordinates
+            const locationData = {
+              address: location.address,
+              coordinates: `${location.latitude}, ${location.longitude}`
+            };
+            // Don't use router.setParams to avoid clearing other state
+            // Just update the local state and let the save function handle it
+          } catch (error) {
+            console.error('Error handling location selection:', error);
+            Alert.alert('Error', 'There was an error setting the location. Please try again.');
+          }
+        }}
+        initialLocation={selectedLocation || undefined}
+      />
     </View>
   );
 }
@@ -600,6 +614,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
     fontStyle: 'italic',
+  },
+  locationButton: {
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#2c2c2e',
+    borderRadius: 8,
+  },
+  locationContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  locationText: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 16,
+    marginLeft: 12,
   },
   addImageText: {
     color: '#007AFF',

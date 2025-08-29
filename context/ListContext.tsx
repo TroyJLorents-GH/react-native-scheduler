@@ -24,9 +24,10 @@ export const useListContext = () => {
 
 export const ListProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [lists, setLists] = useState<List[]>([
-    { id: '1', name: 'Todo Expo Screen', color: '#418cff', icon: 'format-list-bulleted' },
-    { id: '2', name: 'Groceries', color: '#2ecc40', icon: 'cart-outline' },
-    { id: '3', name: 'Ideas', color: '#ff4136', icon: 'lightbulb-outline' },
+    { id: '1', name: 'Todo Expo Screen', color: '#418cff', icon: 'list' },
+    { id: '2', name: 'Work', color: '#2ecc40', icon: 'briefcase' },
+    { id: '3', name: 'Ideas', color: '#ff4136', icon: 'bulb' },
+    { id: '4', name: 'Personal', color: '#b10dc9', icon: 'person' },
   ]);
 
   const addList = (list: Omit<List, 'id'>) => setLists(prev => [

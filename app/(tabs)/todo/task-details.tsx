@@ -1,14 +1,18 @@
 import PomodoroTimer from '@/components/PomodoroTimer';
 import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
+import * as Contacts from 'expo-contacts';
 import { router, useLocalSearchParams } from 'expo-router';
+import * as SMS from 'expo-sms';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Linking, Modal, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function TaskDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { todos, toggleTodo, toggleSubTask, updateTodo } = useTodoContext();
   const [moreExpanded, setMoreExpanded] = useState(false);
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [imageIndex, setImageIndex] = useState(0);
 
   const todo = todos.find(t => t.id === id);
 
@@ -44,12 +48,69 @@ export default function TaskDetailsScreen() {
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Task Details</Text>
-        <TouchableOpacity onPress={() => router.push({
-          pathname: '/todo/new',
-          params: { editId: todo.id }
-        })}>
-          <Ionicons name="create-outline" size={24} color="#007AFF" />
-        </TouchableOpacity>
+        <View style={styles.headerRightRow}>
+          <TouchableOpacity onPress={async () => {
+            try {
+              const parts: string[] = [];
+              parts.push(`Task: ${todo.text}`);
+              if (todo.notes) parts.push(`Notes: ${todo.notes}`);
+              if (todo.dueDate) {
+                const d = new Date(todo.dueDate);
+                parts.push(`Due: ${d.toLocaleString()}`);
+              }
+              if (todo.location) {
+                // Prefer coords link if available
+                let loc = todo.location;
+                if (todo.locationCoords) {
+                  loc = `http://maps.apple.com/?daddr=${todo.locationCoords}`;
+                }
+                parts.push(`Location: ${loc}`);
+              }
+              if (todo.images && todo.images[0]) {
+                parts.push(`Image: ${todo.images[0]}`);
+              }
+              const message = parts.join('\n');
+              await Share.share({ message });
+            } catch {}
+          }} style={{ marginRight: 16 }}>
+            <Ionicons name="share-outline" size={24} color="#007AFF" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={async () => {
+            try {
+              const { status } = await Contacts.requestPermissionsAsync();
+              if (status !== 'granted') return;
+              const { data } = await Contacts.getContactsAsync({ fields: [Contacts.Fields.PhoneNumbers] });
+              const candidates = (data || []).flatMap(c => (c.phoneNumbers || []).map(p => ({ name: c.name, number: p.number || '' }))).filter(c => !!c.number);
+              if (candidates.length === 0) return;
+              // Simple pick: use the first few phone numbers; for a real picker, add a modal list
+              const toNumbers = candidates.slice(0, 3).map(c => c.number);
+              const parts: string[] = [];
+              parts.push(`Task: ${todo.text}`);
+              if (todo.notes) parts.push(`Notes: ${todo.notes}`);
+              if (todo.dueDate) parts.push(`Due: ${new Date(todo.dueDate).toLocaleString()}`);
+              if (todo.location) {
+                let loc = todo.location;
+                if (todo.locationCoords) loc = `http://maps.apple.com/?daddr=${todo.locationCoords}`;
+                parts.push(`Location: ${loc}`);
+              }
+              const body = parts.join('\n');
+              const isAvailable = await SMS.isAvailableAsync();
+              if (isAvailable) {
+                await SMS.sendSMSAsync(toNumbers, body);
+              } else {
+                await Share.share({ message: body });
+              }
+            } catch {}
+          }} style={{ marginRight: 16 }}>
+            <Ionicons name="person-add-outline" size={24} color="#007AFF" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push({
+            pathname: '/todo/new',
+            params: { editId: todo.id }
+          })}>
+            <Ionicons name="create-outline" size={24} color="#007AFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -88,6 +149,27 @@ export default function TaskDetailsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Notes</Text>
             <Text style={styles.notes}>{todo.notes}</Text>
+          </View>
+        )}
+
+        {/* Images */}
+        {todo.images && todo.images.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Images</Text>
+            <View style={styles.imagesGrid}>
+              {todo.images.map((uri, idx) => (
+                <TouchableOpacity
+                  key={uri}
+                  style={styles.imageItem}
+                  onPress={() => {
+                    setImageIndex(idx);
+                    setImageViewerOpen(true);
+                  }}
+                >
+                  <Image source={{ uri }} style={styles.imageThumb} />
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         )}
 
@@ -141,6 +223,40 @@ export default function TaskDetailsScreen() {
           </View>
         )}
 
+        {/* Location */}
+        {todo.location && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Location</Text>
+            <TouchableOpacity 
+              style={styles.locationRow}
+              onPress={() => {
+                // Use stored coordinates if available, otherwise extract from location string
+                if (todo.locationCoords) {
+                  const url = `http://maps.apple.com/?daddr=${todo.locationCoords}`;
+                  Linking.openURL(url);
+                } else {
+                  // Fallback: Extract coordinates from location string if available
+                  const locationMatch = todo.location?.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+                  if (locationMatch) {
+                    const [, lat, lng] = locationMatch;
+                    const url = `http://maps.apple.com/?daddr=${lat},${lng}`;
+                    Linking.openURL(url);
+                  } else {
+                    // If no coordinates, search by address
+                    const encodedAddress = encodeURIComponent(todo.location || '');
+                    const url = `http://maps.apple.com/?q=${encodedAddress}`;
+                    Linking.openURL(url);
+                  }
+                }
+              }}
+            >
+              <Ionicons name="location-outline" size={20} color="#007AFF" />
+              <Text style={styles.locationText}>{todo.location}</Text>
+              <Ionicons name="navigate" size={16} color="#007AFF" style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Priority */}
         {todo.priority && (
           <View style={styles.section}>
@@ -186,12 +302,7 @@ export default function TaskDetailsScreen() {
                     <Text style={styles.moreText}>Early Reminder: {todo.earlyReminder}</Text>
                   </View>
                 )}
-                {todo.location && (
-                  <View style={styles.moreRow}>
-                    <Ionicons name="location" size={20} color="#007AFF" />
-                    <Text style={styles.moreText}>Location: {todo.location}</Text>
-                  </View>
-                )}
+
                 {todo.url && (
                   <View style={styles.moreRow}>
                     <Ionicons name="link" size={20} color="#007AFF" />
@@ -209,6 +320,37 @@ export default function TaskDetailsScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Image Viewer Modal */}
+      {todo.images && todo.images.length > 0 && (
+        <Modal visible={imageViewerOpen} animationType="fade" transparent={true} onRequestClose={() => setImageViewerOpen(false)}>
+          <View style={styles.viewerBackdrop}>
+            <TouchableOpacity style={styles.viewerClose} onPress={() => setImageViewerOpen(false)}>
+              <Ionicons name="close" size={26} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.viewerBody}>
+              <Image source={{ uri: todo.images[imageIndex] }} style={styles.viewerImage} />
+            </View>
+            {todo.images.length > 1 && (
+              <View style={styles.viewerNav}>
+                <TouchableOpacity
+                  style={styles.viewerNavBtn}
+                  onPress={() => setImageIndex((prev) => (prev - 1 + todo.images!.length) % todo.images!.length)}
+                >
+                  <Ionicons name="chevron-back" size={28} color="#fff" />
+                </TouchableOpacity>
+                <Text style={styles.viewerIndex}>{imageIndex + 1} / {todo.images.length}</Text>
+                <TouchableOpacity
+                  style={styles.viewerNavBtn}
+                  onPress={() => setImageIndex((prev) => (prev + 1) % todo.images!.length)}
+                >
+                  <Ionicons name="chevron-forward" size={28} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -227,6 +369,10 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     borderBottomWidth: 0.5,
     borderBottomColor: '#38383a',
+  },
+  headerRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerTitle: {
     color: '#fff',
@@ -274,6 +420,23 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
   },
+  imagesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  imageItem: {
+    width: 90,
+    height: 90,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#1c1c1e',
+  },
+  imageThumb: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
   dueDateRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -285,6 +448,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     marginLeft: 12,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1c1c1e',
+    padding: 16,
+    borderRadius: 12,
+  },
+  locationText: {
+    color: '#fff',
+    fontSize: 16,
+    marginLeft: 12,
+    flex: 1,
   },
   priorityRow: {
     backgroundColor: '#1c1c1e',
@@ -336,6 +512,43 @@ const styles = StyleSheet.create({
     backgroundColor: '#1c1c1e',
     borderRadius: 12,
     overflow: 'hidden',
+  },
+  viewerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  viewerClose: {
+    position: 'absolute',
+    top: 48,
+    right: 20,
+    zIndex: 2,
+  },
+  viewerBody: {
+    width: '100%',
+    paddingHorizontal: 16,
+  },
+  viewerImage: {
+    width: '100%',
+    height: '70%',
+    resizeMode: 'contain',
+  },
+  viewerNav: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  viewerNavBtn: {
+    padding: 8,
+  },
+  viewerIndex: {
+    color: '#fff',
   },
   moreRow: {
     flexDirection: 'row',

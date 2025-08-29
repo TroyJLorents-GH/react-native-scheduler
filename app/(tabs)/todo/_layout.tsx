@@ -2,11 +2,11 @@ import { Stack } from 'expo-router';
 
 export default function TodoStackLayout() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ headerShown: false }} initialRouteName="index">
       <Stack.Screen name="index" />        {/* dashboard */}
       <Stack.Screen name="all" />
       <Stack.Screen name="completed" />
-      <Stack.Screen name="favorites" />
+      <Stack.Screen name="todays-tasks" />
       <Stack.Screen name="priority" />
       <Stack.Screen name="scheduled" />
       <Stack.Screen name="lists" />

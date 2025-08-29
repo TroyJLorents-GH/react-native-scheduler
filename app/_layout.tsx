@@ -42,7 +42,6 @@ import { ListProvider } from '../context/ListContext';
 import { TempDetailsProvider } from '../context/TempDetailsContext';
 import { TodoProvider } from '../context/TodoContext';
 
-
 export default function RootLayout() {
   return (
     <EventProvider>

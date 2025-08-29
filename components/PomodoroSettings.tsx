@@ -228,6 +228,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     minWidth: 60,
     alignItems: 'center',
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
   },
   numberText: {
     color: '#fff',
