@@ -1,9 +1,7 @@
 import PomodoroTimer from '@/components/PomodoroTimer';
 import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
-import * as Contacts from 'expo-contacts';
 import { router, useLocalSearchParams } from 'expo-router';
-import * as SMS from 'expo-sms';
 import React, { useState } from 'react';
 import { Image, Linking, Modal, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -66,43 +64,11 @@ export default function TaskDetailsScreen() {
                 }
                 parts.push(`Location: ${loc}`);
               }
-              if (todo.images && todo.images[0]) {
-                parts.push(`Image: ${todo.images[0]}`);
-              }
               const message = parts.join('\n');
               await Share.share({ message });
             } catch {}
           }} style={{ marginRight: 16 }}>
             <Ionicons name="share-outline" size={24} color="#007AFF" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={async () => {
-            try {
-              const { status } = await Contacts.requestPermissionsAsync();
-              if (status !== 'granted') return;
-              const { data } = await Contacts.getContactsAsync({ fields: [Contacts.Fields.PhoneNumbers] });
-              const candidates = (data || []).flatMap(c => (c.phoneNumbers || []).map(p => ({ name: c.name, number: p.number || '' }))).filter(c => !!c.number);
-              if (candidates.length === 0) return;
-              // Simple pick: use the first few phone numbers; for a real picker, add a modal list
-              const toNumbers = candidates.slice(0, 3).map(c => c.number);
-              const parts: string[] = [];
-              parts.push(`Task: ${todo.text}`);
-              if (todo.notes) parts.push(`Notes: ${todo.notes}`);
-              if (todo.dueDate) parts.push(`Due: ${new Date(todo.dueDate).toLocaleString()}`);
-              if (todo.location) {
-                let loc = todo.location;
-                if (todo.locationCoords) loc = `http://maps.apple.com/?daddr=${todo.locationCoords}`;
-                parts.push(`Location: ${loc}`);
-              }
-              const body = parts.join('\n');
-              const isAvailable = await SMS.isAvailableAsync();
-              if (isAvailable) {
-                await SMS.sendSMSAsync(toNumbers, body);
-              } else {
-                await Share.share({ message: body });
-              }
-            } catch {}
-          }} style={{ marginRight: 16 }}>
-            <Ionicons name="person-add-outline" size={24} color="#007AFF" />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => router.push({
             pathname: '/todo/new',
