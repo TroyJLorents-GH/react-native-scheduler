@@ -1,14 +1,18 @@
 // API Configuration
+// Keys are pulled from environment variables at runtime. In Expo, prefix public
+// runtime env vars with EXPO_PUBLIC_. Create a local .env with values like:
+// EXPO_PUBLIC_WEATHER_API_KEY=...
+// EXPO_PUBLIC_GOOGLE_PLACES_API_KEY=...
 export const API_CONFIG = {
   // Weather API
-  WEATHER_API_KEY: '88c65e45d00c940fe57758308ed099bd',
+  WEATHER_API_KEY: process.env.EXPO_PUBLIC_WEATHER_API_KEY ?? '',
   WEATHER_BASE_URL: 'https://api.openweathermap.org/data/2.5',
-  
+
   // Google APIs - Using reduced scopes for development
-  GOOGLE_CLIENT_ID: '346580462980-facim1lm6d51cauq638vkkqcna1s34gh.apps.googleusercontent.com',
-  
+  GOOGLE_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? '346580462980-facim1lm6d51cauq638vkkqcna1s34gh.apps.googleusercontent.com',
+
   // Google Places API for business search
-  GOOGLE_PLACES_API_KEY: 'AIzaSyBAyTInuJnwrR5M9Q61YZ9tVnc9jOMYieY',
+  GOOGLE_PLACES_API_KEY: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ?? '',
 };
 
 // Weather API endpoints
