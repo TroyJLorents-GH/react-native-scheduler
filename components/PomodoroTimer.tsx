@@ -6,11 +6,12 @@ import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 interface PomodoroTimerProps {
   settings: PomodoroSettings;
   onComplete?: () => void;
+  autoStart?: boolean;
 }
 
 type TimerState = 'idle' | 'work' | 'break' | 'paused';
 
-export default function PomodoroTimer({ settings, onComplete }: PomodoroTimerProps) {
+export default function PomodoroTimer({ settings, onComplete, autoStart }: PomodoroTimerProps) {
   const [timerState, setTimerState] = useState<TimerState>('idle');
   const [timeLeft, setTimeLeft] = useState(0);
   const [currentPhase, setCurrentPhase] = useState<'work' | 'break'>('work');
@@ -112,6 +113,17 @@ export default function PomodoroTimer({ settings, onComplete }: PomodoroTimerPro
       }
     };
   }, [timerState, currentPhase]);
+
+  // Autostart on mount if requested
+  useEffect(() => {
+    if (autoStart && settings.enabled) {
+      // Defer to ensure initial render completes
+      const id = setTimeout(() => {
+        startTimer();
+      }, 0);
+      return () => clearTimeout(id);
+    }
+  }, [autoStart, settings.enabled]);
 
   const getPhaseText = () => {
     switch (currentPhase) {

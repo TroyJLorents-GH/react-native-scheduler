@@ -2,11 +2,11 @@ import PomodoroTimer from '@/components/PomodoroTimer';
 import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Image, Linking, Modal, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function TaskDetailsScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, autostart } = useLocalSearchParams<{ id: string; autostart?: string }>();
   const { todos, toggleTodo, toggleSubTask, updateTodo } = useTodoContext();
   const [moreExpanded, setMoreExpanded] = useState(false);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
@@ -35,6 +35,8 @@ export default function TaskDetailsScreen() {
     // Optionally mark the task as done when Pomodoro is completed
     // updateTodo(todo.id, { done: true });
   };
+
+  const shouldAutoStart = useMemo(() => autostart === '1' || autostart === 'true', [autostart]);
 
   return (
     <View style={styles.container}>
@@ -106,6 +108,7 @@ export default function TaskDetailsScreen() {
             <PomodoroTimer 
               settings={todo.pomodoro}
               onComplete={handleTimerComplete}
+              autoStart={shouldAutoStart}
             />
           </View>
         )}

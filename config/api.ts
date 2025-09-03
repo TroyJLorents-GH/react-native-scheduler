@@ -12,7 +12,7 @@ export const API_CONFIG = {
   GOOGLE_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? '346580462980-facim1lm6d51cauq638vkkqcna1s34gh.apps.googleusercontent.com',
 
   // Google Places API for business search
-  GOOGLE_PLACES_API_KEY: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ?? '',
+  GOOGLE_PLACES_API_KEY: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ?? 'AIzaSyBAyTInuJnwrR5M9Q61YZ9tVnc9jOMYieY',
 };
 
 // Weather API endpoints

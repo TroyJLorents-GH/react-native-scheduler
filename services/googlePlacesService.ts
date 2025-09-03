@@ -38,6 +38,10 @@ class GooglePlacesService {
 
   // Search for places with autocomplete
   async searchAutocomplete(query: string, latitude?: number, longitude?: number): Promise<GooglePlacesAutocompleteResult[]> {
+    if (!this.apiKey) {
+      console.warn('Google Places API key is missing. Set EXPO_PUBLIC_GOOGLE_PLACES_API_KEY');
+      return [];
+    }
     try {
       let url = `${this.baseUrl}/autocomplete/json?input=${encodeURIComponent(query)}&key=${this.apiKey}&types=establishment`;
       
@@ -63,6 +67,10 @@ class GooglePlacesService {
 
   // Search for nearby places
   async searchNearby(query: string, latitude: number, longitude: number, radius: number = 50000): Promise<GooglePlace[]> {
+    if (!this.apiKey) {
+      console.warn('Google Places API key is missing. Set EXPO_PUBLIC_GOOGLE_PLACES_API_KEY');
+      return [];
+    }
     try {
       const url = `${this.baseUrl}/nearbysearch/json?location=${latitude},${longitude}&radius=${radius}&keyword=${encodeURIComponent(query)}&type=establishment&key=${this.apiKey}`;
       
@@ -83,6 +91,10 @@ class GooglePlacesService {
 
   // Get place details
   async getPlaceDetails(placeId: string): Promise<GooglePlace | null> {
+    if (!this.apiKey) {
+      console.warn('Google Places API key is missing. Set EXPO_PUBLIC_GOOGLE_PLACES_API_KEY');
+      return null;
+    }
     try {
       const url = `${this.baseUrl}/details/json?place_id=${placeId}&fields=place_id,name,formatted_address,geometry,types,rating,user_ratings_total,vicinity&key=${this.apiKey}`;
       
@@ -103,6 +115,10 @@ class GooglePlacesService {
 
   // Search for text-based places
   async searchText(query: string, latitude?: number, longitude?: number): Promise<GooglePlace[]> {
+    if (!this.apiKey) {
+      console.warn('Google Places API key is missing. Set EXPO_PUBLIC_GOOGLE_PLACES_API_KEY');
+      return [];
+    }
     try {
       let url = `${this.baseUrl}/textsearch/json?query=${encodeURIComponent(query)}&key=${this.apiKey}&type=establishment`;
       

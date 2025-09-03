@@ -3,17 +3,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
-  FlatList,
-  Keyboard,
-  Modal,
-  SafeAreaView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    FlatList,
+    Keyboard,
+    Modal,
+    SafeAreaView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { GooglePlacesAutocompleteResult, googlePlacesService } from '../services/googlePlacesService';
@@ -107,7 +107,7 @@ export default function LocationSearchModal({
   };
 
   const searchAutocomplete = async (query: string) => {
-    if (query.trim().length < 2) {
+    if (query.trim().length < 1) {
       setCompletions([]);
       return;
     }
@@ -127,7 +127,7 @@ export default function LocationSearchModal({
   };
 
   const searchLocations = async (query: string) => {
-    if (query.trim().length < 2) {
+    if (query.trim().length < 1) {
       setSearchResults([]);
       return;
     }
@@ -145,7 +145,7 @@ export default function LocationSearchModal({
 
       console.log('Google Places results:', places);
 
-      const searchResults: SearchResultItem[] = places.map((place, index) => {
+      let mappedResults: SearchResultItem[] = places.map((place, index) => {
         const distance = calculateDistance(
           currentLocation.coords.latitude,
           currentLocation.coords.longitude,
@@ -172,9 +172,27 @@ export default function LocationSearchModal({
         };
       });
 
-      console.log('Converted search results:', searchResults);
+      // Fallback: if Google returns no results (e.g., key restricted), try plain geocoding
+      if (mappedResults.length === 0) {
+        try {
+          const geos = await Location.geocodeAsync(query);
+          if (geos && geos[0]) {
+            const g = geos[0];
+            mappedResults = [{
+              id: `${g.latitude}-${g.longitude}`,
+              name: query,
+              address: query,
+              latitude: g.latitude!,
+              longitude: g.longitude!,
+              type: 'address'
+            }];
+          }
+        } catch {}
+      }
+
+      console.log('Converted search results:', mappedResults);
       // Sort results by distance (closest first)
-      const sortedResults = searchResults.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+      const sortedResults = mappedResults.sort((a, b) => (a.distance || 0) - (b.distance || 0));
       setSearchResults(sortedResults);
       // Clear completions when we have search results
       setCompletions([]);
@@ -469,22 +487,7 @@ export default function LocationSearchModal({
           {isSearching && <Ionicons name="refresh" size={20} color="#666" style={styles.loadingIcon} />}
         </View>
 
-        {/* Recent locations */}
-        {recentLocations.length > 0 && searchResults.length === 0 && completions.length === 0 && (
-          <View style={{ paddingHorizontal: 16 }}>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {recentLocations.map((r) => (
-                <TouchableOpacity
-                  key={`recent-${r.id}`}
-                  style={{ backgroundColor: '#f2f2f7', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 }}
-                  onPress={() => selectSearchResult(r)}
-                >
-                  <Text style={{ color: '#000', fontSize: 14 }}>{r.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
+        {/* Recent locations hidden per request */}
 
         {/* Completions */}
         {completions.length > 0 && searchResults.length === 0 && (

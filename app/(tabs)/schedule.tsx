@@ -1,67 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { Alert, Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
-import AddEventScreen from '../../components/AddEventScreen';
-import AgendaScreen from '../../components/AgendaScreen';
-import { Event, useEventContext } from '../../context/EventContext';
+import { router } from 'expo-router';
+import React from 'react';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import TodoAgendaScreen from '../../components/TodoAgendaScreen';
+import { useTodoContext } from '../../context/TodoContext';
 
 export default function ScheduleTab() {
-  const { events, addEvent, editEvent, deleteEvent } = useEventContext();
+  const { todos } = useTodoContext();
 
-  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
-  const [isAddEventVisible, setAddEventVisible] = useState(false);
-
-  const handleSaveEvent = (event: Event) => {
-    if (editingEvent) {
-      editEvent(event);
-    } else {
-      addEvent({ ...event, id: Date.now().toString() });
-    }
-    setAddEventVisible(false);
-    setEditingEvent(null);
-  };
-
-  const handleEditEvent = (event: Event) => {
-    setEditingEvent(event);
-    setAddEventVisible(true);
-  };
-
-  const handleDeleteEvent = (event: Event) => {
-    Alert.alert(
-      'Delete Event',
-      'Are you sure you want to delete this event?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => deleteEvent(event.id),
-        },
-      ]
-    );
-  };
+  const todosWithDueDates = todos.filter(t => t.dueDate);
 
   const handleAddNew = () => {
-    setEditingEvent(null);
-    setAddEventVisible(true);
+    router.push('/todo/new');
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#000000ff' }}>
-      <AgendaScreen
-        events={events}
-      />
-
-      <Modal visible={isAddEventVisible} animationType="slide">
-        <AddEventScreen
-          event={editingEvent ?? undefined}
-          onSave={handleSaveEvent}
-          onCancel={() => {
-            setAddEventVisible(false);
-            setEditingEvent(null);
-          }}
-        />
-      </Modal>
+      <TodoAgendaScreen todos={todosWithDueDates} />
 
       <TouchableOpacity style={styles.fab} onPress={handleAddNew}>
         <Ionicons name="add" size={36} color="white" />

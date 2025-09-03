@@ -2,7 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import moment from 'moment';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useEventContext } from '../../context/EventContext';
 import { useTodoContext } from '../../context/TodoContext';
 import { getCurrentWeather, WeatherData } from '../../services/weatherService';
@@ -23,6 +23,11 @@ export default function HomeDashboard() {
     if (!todo.dueDate) return false;
     return moment(todo.dueDate).isSame(today, 'day');
   });
+  // Completion stats
+  const todaysTodosAll = todos.filter(todo => todo.dueDate && moment(todo.dueDate).isSame(today, 'day'));
+  const completedCount = todaysTodosAll.filter(t => t.done).length;
+  const totalCount = todaysTodosAll.length;
+  const completionPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   useEffect(() => {
     loadWeather();
@@ -88,6 +93,22 @@ export default function HomeDashboard() {
         ) : (
           <Text style={styles.errorText}>Unable to load weather data</Text>
         )}
+      </View>
+
+      {/* Daily Goals */}
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>
+          <MaterialCommunityIcons name="target" size={21} color="#ff9a62" />  Daily Goals
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View>
+            <Text style={{ color: '#323447', fontSize: 22, fontWeight: 'bold' }}>{completionPct}%</Text>
+            <Text style={{ color: '#7a7c96' }}>{completedCount} of {totalCount} completed</Text>
+          </View>
+          <View style={{ width: 140, height: 10, backgroundColor: '#f0f1f6', borderRadius: 6, overflow: 'hidden' }}>
+            <View style={{ width: `${completionPct}%`, height: '100%', backgroundColor: '#67c99a' }} />
+          </View>
+        </View>
       </View>
 
       {/* Today's Events */}
