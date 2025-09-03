@@ -84,8 +84,8 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
                 // Calculate position and height
                 const startMinutes = moment(todo.dueDate).minutes();
                 const topOffset = (startMinutes / 60) * 80; // 80px per hour
-                const baseHeight = Math.max((computedDuration / 60) * 80, 50); // Base height for duration
-                const blockHeight = isExpanded ? baseHeight + 40 : baseHeight; // Add space for expanded content
+                const baseHeight = Math.max((computedDuration / 60) * 80, 60); // Increased minimum height
+                const blockHeight = isExpanded ? baseHeight + 50 : baseHeight; // Add more space for expanded content
 
                 return (
                   <View 
@@ -220,26 +220,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   blockTitle: {
     color: '#fff',
     fontWeight: '600',
     fontSize: 14,
     flex: 1,
-    marginRight: 8,
+    marginRight: 12,
     lineHeight: 18,
   },
   blockTime: {
     color: '#9aa3b2',
     fontSize: 12,
     marginBottom: 4,
+    marginTop: 2,
   },
   blockNotes: {
     color: '#9aa3b2',
     fontSize: 12,
-    marginTop: 4,
+    marginTop: 6,
     fontStyle: 'italic',
+    lineHeight: 16,
   },
   playButton: {
     padding: 4,
@@ -249,6 +251,7 @@ const styles = StyleSheet.create({
   blockActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
   },
   expandButton: {
     padding: 4,
