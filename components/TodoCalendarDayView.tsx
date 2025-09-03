@@ -100,18 +100,25 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
                   }
                 });
                 const isDragging = dragId === todo.id;
-                const duration = Math.max(todo.durationMinutes || 60, 15);
-                const blockHeight = Math.max((duration / 60) * pixelsPerHour, 24);
+                const computedDuration = (() => {
+                  if (todo.pomodoro?.enabled) {
+                    const w = todo.pomodoro.workTime || 25;
+                    const unit = todo.pomodoro.workUnit || 'min';
+                    return Math.max(5, unit === 'hour' ? w * 60 : w);
+                  }
+                  return Math.max(5, todo.durationMinutes || 30);
+                })();
+                const blockHeight = Math.max((computedDuration / 60) * pixelsPerHour, 18);
 
                 // Resize (bottom handle) pan
-                const resizePan = PanResponder.create({
+                const resizePan = !todo.pomodoro?.enabled ? PanResponder.create({
                   onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
                   onPanResponderGrant: () => setScrollEnabled(false),
                   onPanResponderMove: (_, g) => setDragDy(g.dy),
                   onPanResponderRelease: () => {
                     setScrollEnabled(true);
                     const deltaMinutes = Math.round((dragDy / Math.max(pixelsPerMinute, 0.5)) / snapMinutes) * snapMinutes;
-                    const newDuration = Math.max(15, duration + deltaMinutes);
+                    const newDuration = Math.max(15, computedDuration + deltaMinutes);
                     updateTodo(todo.id, { durationMinutes: newDuration });
                     setDragDy(0);
                   },
@@ -119,7 +126,7 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
                     setScrollEnabled(true);
                     setDragDy(0);
                   }
-                });
+                }) : undefined;
 
                 return (
                   <View key={todo.id} style={[styles.block, { height: blockHeight }, isDragging && { transform: [{ translateY: dragDy }], zIndex: 2, elevation: 6 }]} {...pan.panHandlers}>
@@ -129,10 +136,12 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
                         <Ionicons name="play-circle" size={20} color="#67c99a" />
                       </TouchableOpacity>
                     </View>
-                    <Text style={styles.blockTime}>{moment(todo.dueDate).format('h:mm A')}  ·  {Math.round((todo.durationMinutes || 60))}m</Text>
-                    <View style={styles.resizeHandle} {...resizePan.panHandlers}>
-                      <Ionicons name="reorder-three" size={18} color="#6c93e6" />
-                    </View>
+                    <Text style={styles.blockTime}>{moment(todo.dueDate).format('h:mm A')}  ·  {Math.round(computedDuration)}m</Text>
+                    {!todo.pomodoro?.enabled && resizePan && (
+                      <View style={styles.resizeHandle} {...resizePan.panHandlers}>
+                        <Ionicons name="reorder-three" size={18} color="#6c93e6" />
+                      </View>
+                    )}
                   </View>
                 );
               })}
