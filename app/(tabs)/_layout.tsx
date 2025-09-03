@@ -14,13 +14,7 @@ export default function TabsLayout() {
         }} 
       />
       <Tabs.Screen 
-        name="todo" 
-        options={{ 
-          title: 'To-Do',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="checkmark-circle-outline" size={size} color={color} />
-          ),
-        }} 
+        // To-Do tab removed per request
       />
       <Tabs.Screen 
         name="schedule" 
