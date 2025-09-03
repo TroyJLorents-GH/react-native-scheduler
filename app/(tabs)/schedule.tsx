@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import TodoAgendaScreen from '../../components/TodoAgendaScreen';
 import TodoCalendarDayView from '../../components/TodoCalendarDayView';
 import { useTodoContext } from '../../context/TodoContext';
@@ -18,7 +18,7 @@ export default function ScheduleTab() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#000000ff' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#000000ff' }}>
       <View style={styles.toggleBar}>
         <TouchableOpacity onPress={() => setViewMode('vertical')} style={[styles.toggleBtn, viewMode === 'vertical' && styles.toggleActive]}>
           <Text style={[styles.toggleText, viewMode === 'vertical' && styles.toggleTextActive]}>Vertical View</Text>
@@ -37,7 +37,7 @@ export default function ScheduleTab() {
       <TouchableOpacity style={styles.fab} onPress={handleAddNew}>
         <Ionicons name="add" size={36} color="white" />
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 

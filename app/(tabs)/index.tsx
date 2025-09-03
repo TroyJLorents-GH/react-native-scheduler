@@ -131,14 +131,6 @@ export default function HomeDashboard() {
               onPress={() => router.push({ pathname: '/todo/task-details', params: { id: todo.id } })}
               activeOpacity={0.7}
             >
-              <TouchableOpacity onPress={() => router.push({ pathname: '/todo/task-details', params: { id: todo.id, autostart: '1' } })}>
-                <Ionicons
-                  name={'play-circle'}
-                  size={20}
-                  color={'#67c99a'}
-                  style={{ marginRight: 9 }}
-                />
-              </TouchableOpacity>
               <View style={styles.todoContent}>
                 <Text style={[
                   styles.todoText,
@@ -150,6 +142,14 @@ export default function HomeDashboard() {
                   <Text style={styles.todoNotes}>{new Date(todo.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
                 ) : null}
               </View>
+              <TouchableOpacity onPress={() => router.push({ pathname: '/todo/task-details', params: { id: todo.id, autostart: '1' } })}>
+                <Ionicons
+                  name={'play-circle'}
+                  size={22}
+                  color={'#67c99a'}
+                  style={{ marginLeft: 9 }}
+                />
+              </TouchableOpacity>
             </TouchableOpacity>
           ))
         )}

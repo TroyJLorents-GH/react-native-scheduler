@@ -68,19 +68,23 @@ export default function TodoAgendaScreen({ todos }: Props) {
             </Text>
             <Text style={styles.itemMeta}>
               {item.dueDate ? moment(item.dueDate).format('h:mm A') : ''}
-              {item.location ? `   ${item.location}` : ''}
             </Text>
             {item.notes ? (
               <Text style={styles.itemDesc}>{item.notes}</Text>
             ) : null}
           </View>
-          <TouchableOpacity onPress={() => toggleTodo(item.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons
-              name={item.done ? 'checkmark-circle' : 'ellipse-outline'}
-              size={22}
-              color={item.done ? '#67c99a' : '#bbb'}
-            />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => router.push({ pathname: '/todo/task-details', params: { id: item.id, autostart: '1' } })} style={{ marginRight: 10 }}>
+              <Ionicons name="play-circle" size={22} color="#67c99a" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => toggleTodo(item.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons
+                name={item.done ? 'checkmark-circle' : 'ellipse-outline'}
+                size={22}
+                color={item.done ? '#67c99a' : '#bbb'}
+              />
+            </TouchableOpacity>
+          </View>
         </TouchableOpacity>
       )}
       stickySectionHeadersEnabled={false}
