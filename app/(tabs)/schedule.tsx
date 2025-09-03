@@ -32,7 +32,11 @@ export default function ScheduleTab() {
       {viewMode === 'vertical' ? (
         <TodoAgendaScreen todos={todosWithDueDates} />
       ) : (
-        <TodoCalendarDayView todos={todosWithDueDates} date={selectedDate} onDateChange={setSelectedDate} />
+        <TodoCalendarDayView 
+          todos={todosWithDueDates} 
+          date={selectedDate} 
+          onDateChange={setSelectedDate} 
+        />
       )}
 
       <TouchableOpacity style={styles.fab} onPress={handleAddNew}>
