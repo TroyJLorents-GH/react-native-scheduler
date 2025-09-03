@@ -5,7 +5,7 @@
 // EXPO_PUBLIC_GOOGLE_PLACES_API_KEY=...
 export const API_CONFIG = {
   // Weather API
-  WEATHER_API_KEY: process.env.EXPO_PUBLIC_WEATHER_API_KEY ?? '',
+  WEATHER_API_KEY: process.env.EXPO_PUBLIC_WEATHER_API_KEY ?? '0720d44916974ce8ce0a2fb5573a76f5',
   WEATHER_BASE_URL: 'https://api.openweathermap.org/data/2.5',
 
   // Google APIs - Using reduced scopes for development
