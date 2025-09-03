@@ -15,6 +15,8 @@ type Props = {
 export default function TodoCalendarDayView({ todos, date, onDateChange }: Props) {
   const { updateTodo } = useTodoContext();
 
+  console.log('TodoCalendarDayView render:', { todos: todos.length, date, selectedDayKey: moment(date).format('YYYY-MM-DD') });
+
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragDy, setDragDy] = useState(0);
   const [rowHeight, setRowHeight] = useState(64);
@@ -26,9 +28,13 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
   const selectedDayKey = moment(date).format('YYYY-MM-DD');
 
   const dayTodos = useMemo(() => {
-    return [...todos]
+    const filtered = [...todos]
       .filter(t => t.dueDate && moment(t.dueDate).format('YYYY-MM-DD') === selectedDayKey)
       .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
+    
+    console.log('Filtered todos for day:', { selectedDayKey, filtered: filtered.length, todos: filtered.map(t => ({ id: t.id, text: t.text, dueDate: t.dueDate })) });
+    
+    return filtered;
   }, [todos, selectedDayKey]);
 
   // Dynamically extend visible hours to include tasks; clamp to 6am–10pm by default
@@ -63,11 +69,23 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
         const hour = startHour + idx;
         const label = moment().hour(hour).minute(0).format('hh:00 a');
         const itemsThisHour = dayTodos.filter(t => new Date(t.dueDate as Date).getHours() === hour);
+        
+        console.log(`Hour ${hour}:`, { label, itemsThisHour: itemsThisHour.length, items: itemsThisHour.map(t => ({ id: t.id, text: t.text })) });
+        
         return (
           <View key={hour} style={styles.hourRow} onLayout={e => setRowHeight(e.nativeEvent.layout.height)}>
             <Text style={styles.hourLabel}>{label}</Text>
             <View style={styles.hourContent}>
               {itemsThisHour.map(todo => {
+                console.log(`Rendering todo:`, { id: todo.id, text: todo.text, dueDate: todo.dueDate, computedDuration: (() => {
+                  if (todo.pomodoro?.enabled) {
+                    const w = todo.pomodoro.workTime || 25;
+                    const unit = todo.pomodoro.workUnit || 'min';
+                    return Math.max(5, unit === 'hour' ? w * 60 : w);
+                  }
+                  return Math.max(5, todo.durationMinutes || 30);
+                })() });
+                
                 const finishDrag = () => {
                   setScrollEnabled(true);
                   const current = new Date(todo.dueDate as Date);
@@ -198,6 +216,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1f2430',
     borderRadius: 10,
     padding: 10,
+    marginBottom: 4,
   },
   resizeHandle: {
     position: 'absolute',
@@ -210,6 +229,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 4,
   },
   blockTitle: {
     color: '#fff',
@@ -220,7 +240,6 @@ const styles = StyleSheet.create({
   },
   blockTime: {
     color: '#6c93e6',
-    marginTop: 4,
     fontSize: 12,
   },
 });
