@@ -18,6 +18,7 @@ export type Todo = {
   priority?: 'low' | 'medium' | 'high';
   dueDate?: Date;
   dueTime?: Date;
+  durationMinutes?: number; // optional: how long the task is expected to take
   category?: string;
   favorite?: boolean;
   notes?: string;
@@ -69,6 +70,7 @@ export const TodoProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createdAt: toDate(raw.createdAt) ?? new Date(),
       dueDate: toDate(raw.dueDate),
       dueTime: toDate(raw.dueTime),
+      durationMinutes: typeof raw.durationMinutes === 'number' ? raw.durationMinutes : undefined,
       subTasks: raw.subTasks ? raw.subTasks.map((s: any) => hydrateTodo(s)) : undefined,
     } as Todo;
   };

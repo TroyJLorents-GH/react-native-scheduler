@@ -19,6 +19,9 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
   const [dragDy, setDragDy] = useState(0);
   const [rowHeight, setRowHeight] = useState(64);
   const [scrollEnabled, setScrollEnabled] = useState(true);
+  const pixelsPerHour = rowHeight; // dynamic
+  const pixelsPerMinute = Math.max(pixelsPerHour / 60, 0.5);
+  const snapMinutes = 15;
 
   const selectedDayKey = moment(date).format('YYYY-MM-DD');
 
@@ -67,12 +70,15 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
               {itemsThisHour.map(todo => {
                 const finishDrag = () => {
                   setScrollEnabled(true);
-                  const currentHour = new Date(todo.dueDate as Date).getHours();
-                  const deltaHours = Math.round(dragDy / Math.max(rowHeight, 1));
-                  const newHour = Math.min(endHour, Math.max(startHour, currentHour + deltaHours));
-                  const newDate = new Date(date);
-                  newDate.setHours(newHour, 0, 0, 0);
-                  updateTodo(todo.id, { dueDate: newDate });
+                  const current = new Date(todo.dueDate as Date);
+                  const deltaMinutes = Math.round((dragDy / Math.max(pixelsPerMinute, 0.5)) / snapMinutes) * snapMinutes;
+                  const target = new Date(date);
+                  target.setHours(current.getHours(), current.getMinutes(), 0, 0);
+                  target.setMinutes(target.getMinutes() + deltaMinutes);
+                  // clamp to visible range
+                  if (target.getHours() < startHour) target.setHours(startHour, 0, 0, 0);
+                  if (target.getHours() > endHour) target.setHours(endHour, 0, 0, 0);
+                  updateTodo(todo.id, { dueDate: target });
                   setDragId(null);
                   setDragDy(0);
                 };
@@ -94,15 +100,39 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
                   }
                 });
                 const isDragging = dragId === todo.id;
+                const duration = Math.max(todo.durationMinutes || 60, 15);
+                const blockHeight = Math.max((duration / 60) * pixelsPerHour, 24);
+
+                // Resize (bottom handle) pan
+                const resizePan = PanResponder.create({
+                  onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
+                  onPanResponderGrant: () => setScrollEnabled(false),
+                  onPanResponderMove: (_, g) => setDragDy(g.dy),
+                  onPanResponderRelease: () => {
+                    setScrollEnabled(true);
+                    const deltaMinutes = Math.round((dragDy / Math.max(pixelsPerMinute, 0.5)) / snapMinutes) * snapMinutes;
+                    const newDuration = Math.max(15, duration + deltaMinutes);
+                    updateTodo(todo.id, { durationMinutes: newDuration });
+                    setDragDy(0);
+                  },
+                  onPanResponderTerminate: () => {
+                    setScrollEnabled(true);
+                    setDragDy(0);
+                  }
+                });
+
                 return (
-                  <View key={todo.id} style={[styles.block, isDragging && { transform: [{ translateY: dragDy }], zIndex: 2, elevation: 6 }]} {...pan.panHandlers}>
+                  <View key={todo.id} style={[styles.block, { height: blockHeight }, isDragging && { transform: [{ translateY: dragDy }], zIndex: 2, elevation: 6 }]} {...pan.panHandlers}>
                     <View style={styles.blockHeader}>
                       <Text style={styles.blockTitle} numberOfLines={1}>{todo.text}</Text>
                       <TouchableOpacity onPress={() => router.push({ pathname: '/todo/task-details', params: { id: todo.id, autostart: '1' } })}>
                         <Ionicons name="play-circle" size={20} color="#67c99a" />
                       </TouchableOpacity>
                     </View>
-                    <Text style={styles.blockTime}>{moment(todo.dueDate).format('h:mm A')}</Text>
+                    <Text style={styles.blockTime}>{moment(todo.dueDate).format('h:mm A')}  ·  {Math.round((todo.durationMinutes || 60))}m</Text>
+                    <View style={styles.resizeHandle} {...resizePan.panHandlers}>
+                      <Ionicons name="reorder-three" size={18} color="#6c93e6" />
+                    </View>
                   </View>
                 );
               })}
@@ -159,6 +189,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#1f2430',
     borderRadius: 10,
     padding: 10,
+  },
+  resizeHandle: {
+    position: 'absolute',
+    bottom: 4,
+    alignSelf: 'center',
+    padding: 4,
+    borderRadius: 8,
   },
   blockHeader: {
     flexDirection: 'row',

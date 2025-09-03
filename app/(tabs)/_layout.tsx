@@ -32,11 +32,11 @@ export default function TabsLayout() {
         }} 
       />
       <Tabs.Screen 
-        name="explore" 
+        name="focus" 
         options={{ 
-          title: 'Explore',
+          title: 'Focus',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="compass-outline" size={size} color={color} />
+            <Ionicons name="timer-outline" size={size} color={color} />
           ),
         }} 
       />
