@@ -16,8 +16,10 @@ export default function TabsLayout() {
       <Tabs.Screen 
         name="todo" 
         options={{ 
-          // Hide To-Do from the tab bar but keep routes navigable
-          href: null,
+          title: 'To-Do',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="checkmark-circle-outline" size={size} color={color} />
+          ),
         }} 
       />
       <Tabs.Screen 
