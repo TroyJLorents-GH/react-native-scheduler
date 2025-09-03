@@ -12,6 +12,7 @@ export default function ScheduleTab() {
   const todosWithDueDates = todos.filter(t => t.dueDate);
 
   const [viewMode, setViewMode] = useState<'vertical' | 'calendar'>('vertical');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   const handleAddNew = () => {
     router.push('/todo/new');
@@ -31,7 +32,7 @@ export default function ScheduleTab() {
       {viewMode === 'vertical' ? (
         <TodoAgendaScreen todos={todosWithDueDates} />
       ) : (
-        <TodoCalendarDayView todos={todosWithDueDates} />
+        <TodoCalendarDayView todos={todosWithDueDates} date={selectedDate} onDateChange={setSelectedDate} />
       )}
 
       <TouchableOpacity style={styles.fab} onPress={handleAddNew}>
