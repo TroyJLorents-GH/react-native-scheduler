@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import moment from 'moment';
-import React, { useMemo, useRef, useState } from 'react';
-import { PanResponder, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useMemo } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Todo, useTodoContext } from '../context/TodoContext';
 
 type Props = {
@@ -13,13 +13,6 @@ type Props = {
 
 export default function TodoCalendarDayView({ todos, date, onDateChange }: Props) {
   const { updateTodo } = useTodoContext();
-
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [dragDy, setDragDy] = useState(0);
-  const [scrollEnabled, setScrollEnabled] = useState(true);
-  const pixelsPerHour = 80; // Fixed height for better visibility
-  const pixelsPerMinute = pixelsPerHour / 60;
-  const snapMinutes = 15;
 
   const selectedDayKey = moment(date).format('YYYY-MM-DD');
 
@@ -38,22 +31,8 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
   const startHour = Math.min(6, minTaskHour);
   const endHour = Math.max(22, maxTaskHour);
 
-  const containerPan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy),
-      onPanResponderRelease: (_, g) => {
-        if (g.dx > 60) onDateChange(moment(date).subtract(1, 'day').toDate());
-        else if (g.dx < -60) onDateChange(moment(date).add(1, 'day').toDate());
-      },
-    })
-  ).current;
-
   return (
-    <ScrollView 
-      contentContainerStyle={styles.container} 
-      scrollEnabled={scrollEnabled} 
-      {...containerPan.panHandlers}
-    >
+    <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.headerRow}>
         <TouchableOpacity 
           onPress={() => onDateChange(moment(date).subtract(1, 'day').toDate())} 
@@ -80,40 +59,6 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
             <Text style={styles.hourLabel}>{label}</Text>
             <View style={styles.hourContent}>
               {itemsThisHour.map(todo => {
-                const finishDrag = () => {
-                  setScrollEnabled(true);
-                  const current = new Date(todo.dueDate as Date);
-                  const deltaMinutes = Math.round((dragDy / pixelsPerMinute) / snapMinutes) * snapMinutes;
-                  const target = new Date(date);
-                  target.setHours(current.getHours(), current.getMinutes(), 0, 0);
-                  target.setMinutes(target.getMinutes() + deltaMinutes);
-                  
-                  if (target.getHours() < startHour) target.setHours(startHour, 0, 0, 0);
-                  if (target.getHours() > endHour) target.setHours(endHour, 0, 0, 0);
-                  
-                  updateTodo(todo.id, { dueDate: target });
-                  setDragId(null);
-                  setDragDy(0);
-                };
-
-                const pan = PanResponder.create({
-                  onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
-                  onStartShouldSetPanResponder: () => true,
-                  onPanResponderGrant: () => {
-                    setDragId(todo.id);
-                    setScrollEnabled(false);
-                  },
-                  onPanResponderMove: (_, g) => setDragDy(g.dy),
-                  onPanResponderRelease: finishDrag,
-                  onPanResponderEnd: finishDrag,
-                  onPanResponderTerminate: () => {
-                    setScrollEnabled(true);
-                    setDragId(null);
-                    setDragDy(0);
-                  }
-                });
-
-                const isDragging = dragId === todo.id;
                 const computedDuration = (() => {
                   if (todo.pomodoro?.enabled) {
                     const w = todo.pomodoro.workTime || 25;
@@ -125,8 +70,8 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
                 
                 // Calculate position and height
                 const startMinutes = moment(todo.dueDate).minutes();
-                const topOffset = (startMinutes / 60) * pixelsPerHour;
-                const blockHeight = Math.max((computedDuration / 60) * pixelsPerHour, 40); // Minimum height for visibility
+                const topOffset = (startMinutes / 60) * 80; // 80px per hour
+                const blockHeight = Math.max((computedDuration / 60) * 80, 50); // Minimum height for visibility
 
                 return (
                   <View 
@@ -136,11 +81,8 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
                       { 
                         top: topOffset,
                         height: blockHeight,
-                        zIndex: isDragging ? 10 : 1
-                      }, 
-                      isDragging && { transform: [{ translateY: dragDy }] }
-                    ]} 
-                    {...pan.panHandlers}
+                      }
+                    ]}
                   >
                     <View style={styles.blockHeader}>
                       <Text style={styles.blockTitle} numberOfLines={2}>{todo.text}</Text>
@@ -154,10 +96,10 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
                     <Text style={styles.blockTime}>
                       {moment(todo.dueDate).format('h:mm A')} - {moment(todo.dueDate).add(computedDuration, 'minutes').format('h:mm A')}
                     </Text>
-                    {!todo.pomodoro?.enabled && (
-                      <View style={styles.resizeHandle}>
-                        <Ionicons name="reorder-three" size={16} color="#6c93e6" />
-                      </View>
+                    {todo.notes && (
+                      <Text style={styles.blockNotes} numberOfLines={1}>
+                        {todo.notes}
+                      </Text>
                     )}
                   </View>
                 );
@@ -230,14 +172,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
-  },
-  resizeHandle: {
-    position: 'absolute',
-    bottom: 4,
-    right: 8,
-    padding: 4,
-    borderRadius: 4,
-    backgroundColor: 'rgba(108, 147, 230, 0.1)',
+    minHeight: 50, // Ensure minimum height for visibility
   },
   blockHeader: {
     flexDirection: 'row',
@@ -257,6 +192,12 @@ const styles = StyleSheet.create({
     color: '#9aa3b2',
     fontSize: 12,
     marginBottom: 4,
+  },
+  blockNotes: {
+    color: '#9aa3b2',
+    fontSize: 12,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   playButton: {
     padding: 4,
