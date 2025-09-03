@@ -109,28 +109,33 @@ export default function HomeDashboard() {
 
       {/* Today's Schedule removed */}
 
-      {/* Today's To-Dos */}
+      {/* Today's Tasks */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>
-          <MaterialCommunityIcons name="check-circle-outline" size={21} color="#67c99a" />  Today's To-Do
+          <MaterialCommunityIcons name="check-circle-outline" size={21} color="#67c99a" />  Today's Tasks
         </Text>
         {todaysTodos.length === 0 ? (
           <Text style={styles.emptyText}>No to-dos for today.</Text>
         ) : (
-          todaysTodos.slice(0, 5).map(todo => ( // Show only first 5 todos
+          [...todaysTodos]
+            .sort((a, b) => {
+              const aTime = a.dueDate ? new Date(a.dueDate).getTime() : Number.POSITIVE_INFINITY;
+              const bTime = b.dueDate ? new Date(b.dueDate).getTime() : Number.POSITIVE_INFINITY;
+              return aTime - bTime;
+            })
+            .slice(0, 5)
+            .map(todo => ( // Show only first 5 todos
             <TouchableOpacity 
               key={todo.id} 
               style={styles.todoItem}
               onPress={() => router.push({ pathname: '/todo/task-details', params: { id: todo.id } })}
               activeOpacity={0.7}
             >
-              <TouchableOpacity onPress={() => {
-                try { require('../../context/TodoContext').useTodoContext().toggleTodo(todo.id); } catch {}
-              }}>
+              <TouchableOpacity onPress={() => router.push({ pathname: '/todo/task-details', params: { id: todo.id, autostart: '1' } })}>
                 <Ionicons
-                  name={todo.done ? 'checkmark-circle' : 'ellipse-outline'}
+                  name={'play-circle'}
                   size={20}
-                  color={todo.done ? '#67c99a' : '#aaa'}
+                  color={'#67c99a'}
                   style={{ marginRight: 9 }}
                 />
               </TouchableOpacity>
@@ -141,9 +146,9 @@ export default function HomeDashboard() {
                 ]}>
                   {todo.text}
                 </Text>
-                {todo.notes && (
-                  <Text style={styles.todoNotes}>{todo.notes}</Text>
-                )}
+                {todo.dueDate ? (
+                  <Text style={styles.todoNotes}>{new Date(todo.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+                ) : null}
               </View>
             </TouchableOpacity>
           ))

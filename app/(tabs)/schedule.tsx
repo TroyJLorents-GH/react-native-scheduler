@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import TodoAgendaScreen from '../../components/TodoAgendaScreen';
+import TodoCalendarDayView from '../../components/TodoCalendarDayView';
 import { useTodoContext } from '../../context/TodoContext';
 
 export default function ScheduleTab() {
@@ -10,13 +11,28 @@ export default function ScheduleTab() {
 
   const todosWithDueDates = todos.filter(t => t.dueDate);
 
+  const [viewMode, setViewMode] = useState<'vertical' | 'calendar'>('vertical');
+
   const handleAddNew = () => {
     router.push('/todo/new');
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#000000ff' }}>
-      <TodoAgendaScreen todos={todosWithDueDates} />
+      <View style={styles.toggleBar}>
+        <TouchableOpacity onPress={() => setViewMode('vertical')} style={[styles.toggleBtn, viewMode === 'vertical' && styles.toggleActive]}>
+          <Text style={[styles.toggleText, viewMode === 'vertical' && styles.toggleTextActive]}>Vertical View</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setViewMode('calendar')} style={[styles.toggleBtn, viewMode === 'calendar' && styles.toggleActive]}>
+          <Text style={[styles.toggleText, viewMode === 'calendar' && styles.toggleTextActive]}>Calendar View</Text>
+        </TouchableOpacity>
+      </View>
+
+      {viewMode === 'vertical' ? (
+        <TodoAgendaScreen todos={todosWithDueDates} />
+      ) : (
+        <TodoCalendarDayView todos={todosWithDueDates} />
+      )}
 
       <TouchableOpacity style={styles.fab} onPress={handleAddNew}>
         <Ionicons name="add" size={36} color="white" />
@@ -26,6 +42,29 @@ export default function ScheduleTab() {
 }
 
 const styles = StyleSheet.create({
+  toggleBar: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 12,
+  },
+  toggleBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 14,
+    backgroundColor: '#14151a',
+  },
+  toggleActive: {
+    backgroundColor: '#2a2f38',
+  },
+  toggleText: {
+    color: '#9aa3b2',
+    fontSize: 14,
+  },
+  toggleTextActive: {
+    color: '#fff',
+    fontWeight: '600',
+  },
   fab: {
     position: 'absolute',
     bottom: 32,
