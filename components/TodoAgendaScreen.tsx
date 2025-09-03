@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import moment from 'moment';
 import React from 'react';
 import { SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Todo } from '../context/TodoContext';
+import { Todo, useTodoContext } from '../context/TodoContext';
 
 type Props = {
   todos: Todo[];
@@ -11,9 +11,16 @@ type Props = {
 
 function getSectionedTodos(todos: Todo[]) {
   const grouped: { [date: string]: Todo[] } = {};
+  const today = moment().startOf('day');
   todos.forEach(todo => {
     if (!todo.dueDate) return;
-    const dateKey = moment(todo.dueDate).format('YYYY-MM-DD');
+    const due = moment(todo.dueDate);
+    // Rollover rule: past due incomplete -> show under today; past due completed -> hide
+    if (due.isBefore(today)) {
+      if (todo.done) return; // hide completed past tasks from schedule view
+    }
+    const displayDate = due.isBefore(today) ? today : due;
+    const dateKey = displayDate.format('YYYY-MM-DD');
     if (!grouped[dateKey]) grouped[dateKey] = [];
     grouped[dateKey].push(todo);
   });
@@ -32,6 +39,7 @@ function getSectionedTodos(todos: Todo[]) {
 }
 
 export default function TodoAgendaScreen({ todos }: Props) {
+  const { toggleTodo } = useTodoContext();
   const sections = getSectionedTodos(todos);
 
   return (
@@ -66,11 +74,13 @@ export default function TodoAgendaScreen({ todos }: Props) {
               <Text style={styles.itemDesc}>{item.notes}</Text>
             ) : null}
           </View>
-          <Ionicons
-            name={item.done ? 'checkmark-circle' : 'ellipse-outline'}
-            size={24}
-            color={item.done ? '#67c99a' : '#bbb'}
-          />
+          <TouchableOpacity onPress={() => toggleTodo(item.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons
+              name={item.done ? 'checkmark-circle' : 'ellipse-outline'}
+              size={22}
+              color={item.done ? '#67c99a' : '#bbb'}
+            />
+          </TouchableOpacity>
         </TouchableOpacity>
       )}
       stickySectionHeadersEnabled={false}

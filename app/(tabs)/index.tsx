@@ -124,12 +124,16 @@ export default function HomeDashboard() {
               onPress={() => router.push({ pathname: '/todo/task-details', params: { id: todo.id } })}
               activeOpacity={0.7}
             >
-              <Ionicons
-                name={todo.done ? 'checkmark-circle' : 'ellipse-outline'}
-                size={20}
-                color={todo.done ? '#67c99a' : '#aaa'}
-                style={{ marginRight: 9 }}
-              />
+              <TouchableOpacity onPress={() => {
+                try { require('../../context/TodoContext').useTodoContext().toggleTodo(todo.id); } catch {}
+              }}>
+                <Ionicons
+                  name={todo.done ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={20}
+                  color={todo.done ? '#67c99a' : '#aaa'}
+                  style={{ marginRight: 9 }}
+                />
+              </TouchableOpacity>
               <View style={styles.todoContent}>
                 <Text style={[
                   styles.todoText,

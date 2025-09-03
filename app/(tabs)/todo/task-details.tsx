@@ -91,7 +91,7 @@ export default function TaskDetailsScreen() {
             >
               <Ionicons 
                 name={todo.done ? 'checkmark-circle' : 'ellipse-outline'} 
-                size={28} 
+                size={24} 
                 color={todo.done ? '#67c99a' : '#bbb'} 
               />
             </TouchableOpacity>
