@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import moment from 'moment';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Todo, useTodoContext } from '../context/TodoContext';
 
@@ -13,6 +13,7 @@ type Props = {
 
 export default function TodoCalendarDayView({ todos, date, onDateChange }: Props) {
   const { updateTodo } = useTodoContext();
+  const [expandedBlocks, setExpandedBlocks] = useState<Set<string>>(new Set());
 
   const selectedDayKey = moment(date).format('YYYY-MM-DD');
 
@@ -30,6 +31,16 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
   const maxTaskHour = hoursForTasks.length ? Math.max(...hoursForTasks) : 20;
   const startHour = Math.min(6, minTaskHour);
   const endHour = Math.max(22, maxTaskHour);
+
+  const toggleBlockExpansion = (todoId: string) => {
+    const newExpanded = new Set(expandedBlocks);
+    if (newExpanded.has(todoId)) {
+      newExpanded.delete(todoId);
+    } else {
+      newExpanded.add(todoId);
+    }
+    setExpandedBlocks(newExpanded);
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -68,10 +79,13 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
                   return Math.max(15, todo.durationMinutes || 60);
                 })();
                 
+                const isExpanded = expandedBlocks.has(todo.id);
+                
                 // Calculate position and height
                 const startMinutes = moment(todo.dueDate).minutes();
                 const topOffset = (startMinutes / 60) * 80; // 80px per hour
-                const blockHeight = Math.max((computedDuration / 60) * 80, 50); // Minimum height for visibility
+                const baseHeight = Math.max((computedDuration / 60) * 80, 50); // Base height for duration
+                const blockHeight = isExpanded ? baseHeight + 40 : baseHeight; // Add space for expanded content
 
                 return (
                   <View 
@@ -85,21 +99,49 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
                     ]}
                   >
                     <View style={styles.blockHeader}>
-                      <Text style={styles.blockTitle} numberOfLines={2}>{todo.text}</Text>
-                      <TouchableOpacity 
-                        onPress={() => router.push({ pathname: '/todo/task-details', params: { id: todo.id, autostart: '1' } })}
-                        style={styles.playButton}
-                      >
-                        <Ionicons name="play-circle" size={20} color="#67c99a" />
-                      </TouchableOpacity>
+                      <Text style={styles.blockTitle} numberOfLines={isExpanded ? 3 : 1}>
+                        {todo.text}
+                      </Text>
+                      <View style={styles.blockActions}>
+                        <TouchableOpacity 
+                          onPress={() => toggleBlockExpansion(todo.id)}
+                          style={styles.expandButton}
+                        >
+                          <Ionicons 
+                            name={isExpanded ? "chevron-up" : "ellipsis-horizontal"} 
+                            size={16} 
+                            color="#9aa3b2" 
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          onPress={() => router.push({ pathname: '/todo/task-details', params: { id: todo.id, autostart: '1' } })}
+                          style={styles.playButton}
+                        >
+                          <Ionicons name="play-circle" size={20} color="#67c99a" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
+                    
                     <Text style={styles.blockTime}>
                       {moment(todo.dueDate).format('h:mm A')} - {moment(todo.dueDate).add(computedDuration, 'minutes').format('h:mm A')}
                     </Text>
-                    {todo.notes && (
-                      <Text style={styles.blockNotes} numberOfLines={1}>
+                    
+                    {isExpanded && todo.notes && (
+                      <Text style={styles.blockNotes} numberOfLines={2}>
                         {todo.notes}
                       </Text>
+                    )}
+                    
+                    {isExpanded && (
+                      <View style={styles.expandedActions}>
+                        <TouchableOpacity 
+                          style={styles.actionButton}
+                          onPress={() => router.push({ pathname: '/todo/task-details', params: { id: todo.id } })}
+                        >
+                          <Ionicons name="eye" size={16} color="#9aa3b2" />
+                          <Text style={styles.actionText}>View Details</Text>
+                        </TouchableOpacity>
+                      </View>
                     )}
                   </View>
                 );
@@ -203,6 +245,31 @@ const styles = StyleSheet.create({
     padding: 4,
     backgroundColor: 'rgba(103, 201, 154, 0.1)',
     borderRadius: 12,
+  },
+  blockActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  expandButton: {
+    padding: 4,
+    marginRight: 8,
+  },
+  expandedActions: {
+    flexDirection: 'row',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#2a2f38',
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  actionText: {
+    color: '#9aa3b2',
+    fontSize: 12,
+    marginLeft: 5,
   },
 });
 
