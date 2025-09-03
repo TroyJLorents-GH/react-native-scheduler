@@ -14,7 +14,11 @@ export default function TabsLayout() {
         }} 
       />
       <Tabs.Screen 
-        // To-Do tab removed per request
+        name="todo" 
+        options={{ 
+          // Hide To-Do from the tab bar but keep routes navigable
+          href: null,
+        }} 
       />
       <Tabs.Screen 
         name="schedule" 
