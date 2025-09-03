@@ -3,20 +3,16 @@ import { router } from 'expo-router';
 import moment from 'moment';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useEventContext } from '../../context/EventContext';
 import { useTodoContext } from '../../context/TodoContext';
 import { getCurrentWeather, WeatherData } from '../../services/weatherService';
 
 export default function HomeDashboard() {
-  const { events } = useEventContext();
   const { todos } = useTodoContext();
   // const { user, isAuthenticated, isLoading: authLoading, signIn, signOut } = useGoogleAuth();
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   
   const today = moment();
-  const todaysEvents = events.filter(e => moment(e.startDate).isSame(today, 'day'));
-  
   // Get today's todos (not completed)
   const todaysTodos = todos.filter(todo => {
     if (todo.done) return false; // Skip completed todos
@@ -111,29 +107,7 @@ export default function HomeDashboard() {
         </View>
       </View>
 
-      {/* Today's Events */}
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>
-          <Ionicons name="calendar-outline" size={20} color="#556de8" />  Today's Schedule
-        </Text>
-        {todaysEvents.length === 0 ? (
-          <Text style={styles.emptyText}>No events for today.</Text>
-        ) : (
-          todaysEvents.map(ev => (
-            <View key={ev.id} style={styles.eventItem}>
-              <Text style={styles.eventTitle}>{ev.title}</Text>
-              <Text style={styles.eventTime}>
-                {moment(ev.startDate).format('h:mm A')} - {moment(ev.endDate).format('h:mm A')}
-              </Text>
-              {ev.location ? <Text style={styles.eventLoc}>{ev.location}</Text> : null}
-            </View>
-          ))
-        )}
-        <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/add-event')}>
-          <Ionicons name="add-circle" size={28} color="#556de8" />
-          <Text style={styles.addBtnText}>Add Event</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Today's Schedule removed */}
 
       {/* Today's To-Dos */}
       <View style={styles.card}>
