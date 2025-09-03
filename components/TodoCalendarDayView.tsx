@@ -14,8 +14,6 @@ type Props = {
 // Simple calendar-like vertical timeline for a single day with drag/drop + swipe date
 export default function TodoCalendarDayView({ todos, date, onDateChange }: Props) {
   const { updateTodo } = useTodoContext();
-  const startHour = 8; // 8 AM
-  const endHour = 20; // 8 PM
 
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragDy, setDragDy] = useState(0);
@@ -29,6 +27,13 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
       .filter(t => t.dueDate && moment(t.dueDate).format('YYYY-MM-DD') === selectedDayKey)
       .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
   }, [todos, selectedDayKey]);
+
+  // Dynamically extend visible hours to include tasks; clamp to 6am–10pm by default
+  const hoursForTasks = dayTodos.map(t => new Date(t.dueDate as Date).getHours());
+  const minTaskHour = hoursForTasks.length ? Math.min(...hoursForTasks) : 8;
+  const maxTaskHour = hoursForTasks.length ? Math.max(...hoursForTasks) : 20;
+  const startHour = Math.min(6, minTaskHour);
+  const endHour = Math.max(22, maxTaskHour);
 
   const containerPan = useRef(
     PanResponder.create({
@@ -60,24 +65,28 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
             <Text style={styles.hourLabel}>{label}</Text>
             <View style={styles.hourContent}>
               {itemsThisHour.map(todo => {
+                const finishDrag = () => {
+                  setScrollEnabled(true);
+                  const currentHour = new Date(todo.dueDate as Date).getHours();
+                  const deltaHours = Math.round(dragDy / Math.max(rowHeight, 1));
+                  const newHour = Math.min(endHour, Math.max(startHour, currentHour + deltaHours));
+                  const newDate = new Date(date);
+                  newDate.setHours(newHour, 0, 0, 0);
+                  updateTodo(todo.id, { dueDate: newDate });
+                  setDragId(null);
+                  setDragDy(0);
+                };
+
                 const pan = PanResponder.create({
+                  onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
                   onStartShouldSetPanResponder: () => true,
                   onPanResponderGrant: () => {
                     setDragId(todo.id);
                     setScrollEnabled(false);
                   },
                   onPanResponderMove: (_, g) => setDragDy(g.dy),
-                  onPanResponderRelease: () => {
-                    setScrollEnabled(true);
-                    const currentHour = new Date(todo.dueDate as Date).getHours();
-                    const deltaHours = Math.round(dragDy / Math.max(rowHeight, 1));
-                    const newHour = Math.min(endHour, Math.max(startHour, currentHour + deltaHours));
-                    const newDate = new Date(date);
-                    newDate.setHours(newHour, 0, 0, 0);
-                    updateTodo(todo.id, { dueDate: newDate });
-                    setDragId(null);
-                    setDragDy(0);
-                  },
+                  onPanResponderRelease: finishDrag,
+                  onPanResponderEnd: finishDrag,
                   onPanResponderTerminate: () => {
                     setScrollEnabled(true);
                     setDragId(null);
