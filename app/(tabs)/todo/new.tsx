@@ -590,7 +590,7 @@ export default function NewReminder() {
 
       {/* Keyboard Accessories */}
       <View style={styles.keyboardAccessories}>
-        <TouchableOpacity style={styles.accessoryButton} onPress={showQuickDateOptions}>
+        <TouchableOpacity style={styles.accessoryButton} onPress={showDatePicker}>
           <Ionicons name="calendar" size={20} color={selectedDate ? "#007AFF" : "#8e8e93"} />
           <Text style={[styles.accessoryText, selectedDate && { color: "#007AFF" }]}>
             {selectedDate ? 'Date Set' : 'Date'}
@@ -617,23 +617,7 @@ export default function NewReminder() {
         </TouchableOpacity>
       </View>
 
-      {/* Inline Date Chips */}
-      {showDateChips && (
-        <View style={styles.dateChipsRow}>
-          <TouchableOpacity style={styles.dateChip} onPress={setToday}>
-            <Text style={styles.dateChipText}>Today</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.dateChip} onPress={setTomorrow}>
-            <Text style={styles.dateChipText}>Tomorrow</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.dateChip} onPress={setThisWeekend}>
-            <Text style={styles.dateChipText}>This Weekend</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.dateChip} onPress={() => { setShowDateChips(false); showDatePicker(); }}>
-            <Text style={styles.dateChipText}>Date & Time</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* Inline Date Chips removed per request */}
 
       {/* Image Preview Grid */}
       {images.length > 0 && (
