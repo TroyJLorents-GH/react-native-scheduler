@@ -16,10 +16,9 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
 
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragDy, setDragDy] = useState(0);
-  const [rowHeight, setRowHeight] = useState(64);
   const [scrollEnabled, setScrollEnabled] = useState(true);
-  const pixelsPerHour = rowHeight;
-  const pixelsPerMinute = Math.max(pixelsPerHour / 60, 0.5);
+  const pixelsPerHour = 80; // Fixed height for better visibility
+  const pixelsPerMinute = pixelsPerHour / 60;
   const snapMinutes = 15;
 
   const selectedDayKey = moment(date).format('YYYY-MM-DD');
@@ -77,14 +76,14 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
         const itemsThisHour = dayTodos.filter(t => new Date(t.dueDate as Date).getHours() === hour);
         
         return (
-          <View key={hour} style={styles.hourRow} onLayout={e => setRowHeight(e.nativeEvent.layout.height)}>
+          <View key={hour} style={styles.hourRow}>
             <Text style={styles.hourLabel}>{label}</Text>
             <View style={styles.hourContent}>
               {itemsThisHour.map(todo => {
                 const finishDrag = () => {
                   setScrollEnabled(true);
                   const current = new Date(todo.dueDate as Date);
-                  const deltaMinutes = Math.round((dragDy / Math.max(pixelsPerMinute, 0.5)) / snapMinutes) * snapMinutes;
+                  const deltaMinutes = Math.round((dragDy / pixelsPerMinute) / snapMinutes) * snapMinutes;
                   const target = new Date(date);
                   target.setHours(current.getHours(), current.getMinutes(), 0, 0);
                   target.setMinutes(target.getMinutes() + deltaMinutes);
@@ -119,54 +118,45 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
                   if (todo.pomodoro?.enabled) {
                     const w = todo.pomodoro.workTime || 25;
                     const unit = todo.pomodoro.workUnit || 'min';
-                    return Math.max(5, unit === 'hour' ? w * 60 : w);
+                    return Math.max(15, unit === 'hour' ? w * 60 : w);
                   }
-                  return Math.max(5, todo.durationMinutes || 30);
+                  return Math.max(15, todo.durationMinutes || 60);
                 })();
-                const blockHeight = Math.max((computedDuration / 60) * pixelsPerHour, 18);
-
-                // Resize handle (only for non-Pomodoro tasks)
-                const resizePan = !todo.pomodoro?.enabled ? PanResponder.create({
-                  onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
-                  onPanResponderGrant: () => setScrollEnabled(false),
-                  onPanResponderMove: (_, g) => setDragDy(g.dy),
-                  onPanResponderRelease: () => {
-                    setScrollEnabled(true);
-                    const deltaMinutes = Math.round((dragDy / Math.max(pixelsPerMinute, 0.5)) / snapMinutes) * snapMinutes;
-                    const newDuration = Math.max(15, computedDuration + deltaMinutes);
-                    updateTodo(todo.id, { durationMinutes: newDuration });
-                    setDragDy(0);
-                  },
-                  onPanResponderTerminate: () => {
-                    setScrollEnabled(true);
-                    setDragDy(0);
-                  }
-                }) : undefined;
+                
+                // Calculate position and height
+                const startMinutes = moment(todo.dueDate).minutes();
+                const topOffset = (startMinutes / 60) * pixelsPerHour;
+                const blockHeight = Math.max((computedDuration / 60) * pixelsPerHour, 40); // Minimum height for visibility
 
                 return (
                   <View 
                     key={todo.id} 
                     style={[
                       styles.block, 
-                      { height: blockHeight }, 
-                      isDragging && { transform: [{ translateY: dragDy }], zIndex: 2, elevation: 6 }
+                      { 
+                        top: topOffset,
+                        height: blockHeight,
+                        zIndex: isDragging ? 10 : 1
+                      }, 
+                      isDragging && { transform: [{ translateY: dragDy }] }
                     ]} 
                     {...pan.panHandlers}
                   >
                     <View style={styles.blockHeader}>
-                      <Text style={styles.blockTitle} numberOfLines={1}>{todo.text}</Text>
+                      <Text style={styles.blockTitle} numberOfLines={2}>{todo.text}</Text>
                       <TouchableOpacity 
                         onPress={() => router.push({ pathname: '/todo/task-details', params: { id: todo.id, autostart: '1' } })}
+                        style={styles.playButton}
                       >
                         <Ionicons name="play-circle" size={20} color="#67c99a" />
                       </TouchableOpacity>
                     </View>
                     <Text style={styles.blockTime}>
-                      {moment(todo.dueDate).format('h:mm A')}  ·  {Math.round(computedDuration)}m
+                      {moment(todo.dueDate).format('h:mm A')} - {moment(todo.dueDate).add(computedDuration, 'minutes').format('h:mm A')}
                     </Text>
-                    {!todo.pomodoro?.enabled && resizePan && (
-                      <View style={styles.resizeHandle} {...resizePan.panHandlers}>
-                        <Ionicons name="reorder-three" size={18} color="#6c93e6" />
+                    {!todo.pomodoro?.enabled && (
+                      <View style={styles.resizeHandle}>
+                        <Ionicons name="reorder-three" size={16} color="#6c93e6" />
                       </View>
                     )}
                   </View>
@@ -191,11 +181,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 12,
     paddingVertical: 8,
+    backgroundColor: '#1a1a1a',
+    marginBottom: 8,
   },
   headerBtn: {
     padding: 6,
     borderRadius: 12,
-    backgroundColor: '#14151a',
+    backgroundColor: '#2a2a2a',
   },
   headerTitle: {
     color: '#fff',
@@ -206,50 +198,70 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 0,
+    height: 80, // Fixed height for consistent spacing
   },
   hourLabel: {
-    width: 74,
+    width: 80,
     color: '#9aa3b2',
     fontSize: 12,
     textTransform: 'lowercase',
+    paddingTop: 8,
   },
   hourContent: {
     flex: 1,
     borderLeftWidth: 1,
     borderLeftColor: '#2a2f38',
     paddingLeft: 12,
-    gap: 8,
+    position: 'relative',
+    height: 80, // Match hourRow height
   },
   block: {
-    backgroundColor: '#1f2430',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 4,
+    position: 'absolute',
+    left: 0,
+    right: 8,
+    backgroundColor: '#2a2f38',
+    borderRadius: 8,
+    padding: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#67c99a',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   resizeHandle: {
     position: 'absolute',
     bottom: 4,
-    alignSelf: 'center',
+    right: 8,
     padding: 4,
-    borderRadius: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(108, 147, 230, 0.1)',
   },
   blockHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   blockTitle: {
     color: '#fff',
-    fontWeight: '700',
+    fontWeight: '600',
     fontSize: 14,
     flex: 1,
     marginRight: 8,
+    lineHeight: 18,
   },
   blockTime: {
-    color: '#6c93e6',
+    color: '#9aa3b2',
     fontSize: 12,
+    marginBottom: 4,
+  },
+  playButton: {
+    padding: 4,
+    backgroundColor: 'rgba(103, 201, 154, 0.1)',
+    borderRadius: 12,
   },
 });
 
