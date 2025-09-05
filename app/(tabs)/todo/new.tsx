@@ -5,16 +5,16 @@ import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
-    Alert,
-    Image,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Image,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
@@ -25,6 +25,7 @@ export default function NewReminder() {
   const { addTodo, updateTodo, todos } = useTodoContext();
   const { lists } = useListContext();
   const params = useLocalSearchParams();
+  const titleInputRef = useRef<TextInput>(null);
 
   
   const editId = params.editId as string;
@@ -111,7 +112,6 @@ export default function NewReminder() {
   }, [params.preSelectedListId, params.fromListPicker, params.detailsSaved, params.editId, params.title, params.notes, params.priority, params.dueDate, params.dueTime, params.subtasks, params.earlyReminder, params.repeat, params.location, params.url, params.pomodoroEnabled, params.workTime, params.workUnit, params.breakTime, params.breakUnit]);
 
   const [subtasks, setSubtasks] = useState<Array<{id: string, text: string, done: boolean, listId: string, createdAt: Date}>>(existingTodo?.subTasks || []);
-  const [showSubtasks, setShowSubtasks] = useState(false);
   const [subInput, setSubInput] = useState('');
   
   // Date picker state
@@ -197,7 +197,6 @@ export default function NewReminder() {
     setTitle('');
     setNotes('');
     setSubtasks([]);
-    setShowSubtasks(false);
     setSubInput('');
     setSelectedDate(null);
     setPriority('medium');
@@ -477,8 +476,14 @@ export default function NewReminder() {
       <View style={styles.content}>
         {/* Title and Notes Input */}
         <View style={styles.inputContainer}>
-          <View style={styles.titleRow}>
+          <TouchableOpacity
+            style={styles.titleRow}
+            activeOpacity={1}
+            onPress={() => titleInputRef.current?.focus()}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
             <TextInput
+              ref={titleInputRef}
               style={[styles.titleInput, {borderColor: "#bababa"}]}
               placeholder="Title"
               placeholderTextColor={"#bababa"}
@@ -487,19 +492,7 @@ export default function NewReminder() {
               multiline
               returnKeyType="next"
             />
-            {title.trim() && (
-              <TouchableOpacity 
-                onPress={() => setShowSubtasks(!showSubtasks)} 
-                style={styles.expandButton}
-              >
-                <Ionicons
-                  name={showSubtasks ? 'chevron-up' : 'chevron-down'}
-                  size={22}
-                  color="#67c99a"
-                />
-              </TouchableOpacity>
-            )}
-          </View>
+          </TouchableOpacity>
           <TextInput
             style={styles.notesInput}
             placeholder="Notes"
@@ -509,9 +502,22 @@ export default function NewReminder() {
             multiline
             returnKeyType="default"
           />
-          
-          {/* Subtasks Section */}
-          {showSubtasks && (
+          {/* Subtasks: Input row always visible, list appears below */}
+          <View style={styles.subtaskInputRow}>
+            <TextInput
+              style={styles.subtaskInput}
+              placeholder="Add subtask"
+              placeholderTextColor={"#bababa"}
+              value={subInput}
+              onChangeText={setSubInput}
+              onSubmitEditing={addSubtask}
+              returnKeyType="done"
+            />
+            <TouchableOpacity onPress={addSubtask}>
+              <Ionicons name="add-circle-outline" size={22} color="#67c99a" />
+            </TouchableOpacity>
+          </View>
+          {subtasks.length > 0 && (
             <View style={styles.subtasksContainer}>
               {subtasks.map(sub => (
                 <TouchableOpacity
@@ -533,20 +539,6 @@ export default function NewReminder() {
                   </Text>
                 </TouchableOpacity>
               ))}
-              <View style={styles.subtaskInputRow}>
-                <TextInput
-                  style={styles.subtaskInput}
-                  placeholder="Add subtask"
-                  placeholderTextColor={"#bababa"}
-                  value={subInput}
-                  onChangeText={setSubInput}
-                  onSubmitEditing={addSubtask}
-                  returnKeyType="done"
-                />
-                <TouchableOpacity onPress={addSubtask}>
-                  <Ionicons name="add-circle-outline" size={22} color="#67c99a" />
-                </TouchableOpacity>
-              </View>
             </View>
           )}
         </View>
@@ -816,6 +808,8 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    minHeight: 48,
+    paddingVertical: 6,
   },
   expandButton: {
     marginLeft: 8,

@@ -2,7 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import moment from 'moment';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTodoContext } from '../../context/TodoContext';
 import { getCurrentWeather, WeatherData } from '../../services/weatherService';
 
@@ -44,7 +44,8 @@ export default function HomeDashboard() {
 
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f8ff' }}>
+    <ScrollView contentContainerStyle={[styles.container, { paddingTop: 12 }]}> 
 
 
       {/* Weather Card */}
@@ -162,6 +163,7 @@ export default function HomeDashboard() {
         </TouchableOpacity>
       </View>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 

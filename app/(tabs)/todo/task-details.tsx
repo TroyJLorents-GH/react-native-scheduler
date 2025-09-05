@@ -37,6 +37,8 @@ export default function TaskDetailsScreen() {
   };
 
   const shouldAutoStart = useMemo(() => autostart === '1' || autostart === 'true', [autostart]);
+  const priorityColor = todo?.priority === 'high' ? '#FF6B6B' : todo?.priority === 'medium' ? '#FFD93D' : todo?.priority === 'low' ? '#6BCF7F' : undefined;
+  const priorityAbbr = todo?.priority === 'high' ? 'H' : todo?.priority === 'medium' ? 'M' : todo?.priority === 'low' ? 'L' : undefined;
 
   return (
     <View style={styles.container}>
@@ -98,6 +100,11 @@ export default function TaskDetailsScreen() {
             <Text style={[styles.title, todo.done && styles.doneText]}>
               {todo.text}
             </Text>
+            {priorityColor && priorityAbbr && (
+              <View style={[styles.prioritySupBadge, { backgroundColor: priorityColor }]}>
+                <Text style={styles.prioritySupText}>{priorityAbbr}</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -226,22 +233,7 @@ export default function TaskDetailsScreen() {
           </View>
         )}
 
-        {/* Priority */}
-        {todo.priority && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Priority</Text>
-            <View style={styles.priorityRow}>
-              <View style={[
-                styles.priorityBadge, 
-                { backgroundColor: todo.priority === 'high' ? '#FF6B6B' : todo.priority === 'medium' ? '#FFD93D' : '#6BCF7F' }
-              ]}>
-                <Text style={styles.priorityText}>
-                  {todo.priority.charAt(0).toUpperCase() + todo.priority.slice(1)}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
+        {/* Priority section removed; priority shown as superscript next to title */}
 
         {/* More Section */}
         {(todo.repeat || todo.earlyReminder || todo.location || todo.url || (todo.images && todo.images.length > 0)) && (
@@ -370,6 +362,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     flex: 1,
     lineHeight: 32,
+  },
+  prioritySupBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 8,
+    marginTop: 2,
+  },
+  prioritySupText: {
+    color: '#000',
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 12,
   },
   doneText: {
     textDecorationLine: 'line-through',
