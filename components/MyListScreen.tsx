@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, Modal, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useListContext } from '../context/ListContext';
 import { useTodoContext } from '../context/TodoContext';
 
@@ -35,7 +35,7 @@ export default function MyListsScreen() {
     todos.filter(t => t.listId === listId && !t.done).length;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={styles.header}>My Lists</Text>
 
       <FlatList
@@ -117,7 +117,7 @@ export default function MyListsScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
