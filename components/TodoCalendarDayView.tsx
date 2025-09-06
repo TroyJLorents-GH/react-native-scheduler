@@ -112,11 +112,11 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
                       </Text>
                       <View style={styles.blockActions}>
                         <TouchableOpacity 
-                          onPress={() => toggleBlockExpansion(todo.id)}
+                          onPress={() => router.push({ pathname: '/todo/task-details', params: { id: todo.id } })}
                           style={styles.expandButton}
                         >
                           <Ionicons 
-                            name={isExpanded ? "chevron-up" : "ellipsis-horizontal"} 
+                            name={"ellipsis-horizontal"}
                             size={16} 
                             color="#9aa3b2" 
                           />
@@ -133,24 +133,6 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
                     <Text style={styles.blockTime}>
                       {moment(todo.dueDate).format('h:mm A')} - {moment(todo.dueDate).add(computedDuration, 'minutes').format('h:mm A')}
                     </Text>
-                    
-                    {isExpanded && todo.notes && (
-                      <Text style={styles.blockNotes} numberOfLines={2}>
-                        {todo.notes}
-                      </Text>
-                    )}
-                    
-                    {isExpanded && (
-                      <View style={styles.expandedActions}>
-                        <TouchableOpacity 
-                          style={styles.actionButton}
-                          onPress={() => router.push({ pathname: '/todo/task-details', params: { id: todo.id } })}
-                        >
-                          <Ionicons name="eye" size={16} color="#9aa3b2" />
-                          <Text style={styles.actionText}>View Details</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
                   </View>
                 );
               })}
@@ -223,6 +205,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
     minHeight: 50, // Ensure minimum height for visibility
+    overflow: 'hidden', // keep contents inside the card
   },
   blockHeader: {
     flexDirection: 'row',
