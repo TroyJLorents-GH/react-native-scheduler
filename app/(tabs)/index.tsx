@@ -4,10 +4,12 @@ import moment from 'moment';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTodoContext } from '../../context/TodoContext';
+import { useListContext } from '../../context/ListContext';
 import { getCurrentWeather, WeatherData } from '../../services/weatherService';
 
 export default function HomeDashboard() {
   const { todos } = useTodoContext();
+  const { lists } = useListContext();
   // const { user, isAuthenticated, isLoading: authLoading, signIn, signOut } = useGoogleAuth();
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -122,15 +124,6 @@ export default function HomeDashboard() {
           <Text style={styles.emptyText}>No to-dos for today.</Text>
         ) : (
           [...todaysTodos]
-            .sort((a, b) => {
-              // Sort by time-of-day so past-due rollovers order nicely
-              const timeKey = (d?: Date) => {
-                if (!d) return Number.POSITIVE_INFINITY;
-                const dt = new Date(d);
-                return dt.getHours() * 60 + dt.getMinutes();
-              };
-              return timeKey(a.dueDate as Date) - timeKey(b.dueDate as Date);
-            })
             .slice(0, 5)
             .map(todo => ( // Show only first 5 todos
             <TouchableOpacity 
@@ -146,9 +139,9 @@ export default function HomeDashboard() {
                 ]}>
                   {todo.text}
                 </Text>
-                {todo.dueDate ? (
-                  <Text style={styles.todoNotes}>{new Date(todo.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-                ) : null}
+                <Text style={styles.todoNotes}>
+                  {lists.find(l => l.id === todo.listId)?.name || 'Reminders'}
+                </Text>
               </View>
               <TouchableOpacity onPress={() => router.push({ pathname: '/todo/task-details', params: { id: todo.id, autostart: '1' } })}>
                 <Ionicons
