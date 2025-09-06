@@ -13,11 +13,14 @@ export default function HomeDashboard() {
   const [loading, setLoading] = useState(true);
   
   const today = moment();
-  // Get today's todos (not completed)
+  const startOfToday = today.clone().startOf('day');
+  // Today's tasks with rollover from past days (incomplete)
   const todaysTodos = todos.filter(todo => {
-    if (todo.done) return false; // Skip completed todos
+    if (todo.done) return false;
     if (!todo.dueDate) return false;
-    return moment(todo.dueDate).isSame(today, 'day');
+    const due = moment(todo.dueDate);
+    // Due today OR incomplete and past due (roll over)
+    return due.isSame(today, 'day') || due.isBefore(startOfToday);
   });
   // Completion stats
   const todaysTodosAll = todos.filter(todo => todo.dueDate && moment(todo.dueDate).isSame(today, 'day'));
@@ -120,9 +123,13 @@ export default function HomeDashboard() {
         ) : (
           [...todaysTodos]
             .sort((a, b) => {
-              const aTime = a.dueDate ? new Date(a.dueDate).getTime() : Number.POSITIVE_INFINITY;
-              const bTime = b.dueDate ? new Date(b.dueDate).getTime() : Number.POSITIVE_INFINITY;
-              return aTime - bTime;
+              // Sort by time-of-day so past-due rollovers order nicely
+              const timeKey = (d?: Date) => {
+                if (!d) return Number.POSITIVE_INFINITY;
+                const dt = new Date(d);
+                return dt.getHours() * 60 + dt.getMinutes();
+              };
+              return timeKey(a.dueDate as Date) - timeKey(b.dueDate as Date);
             })
             .slice(0, 5)
             .map(todo => ( // Show only first 5 todos
