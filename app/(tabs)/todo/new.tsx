@@ -10,6 +10,7 @@ import {
   Alert,
   Image,
   Platform,
+  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
@@ -17,7 +18,6 @@ import {
   View
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import { SafeAreaView } from 'react-native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 export default function NewReminder() {

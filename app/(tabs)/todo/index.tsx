@@ -13,6 +13,7 @@ import {
     Text,
     TouchableOpacity,
     View,
+    SafeAreaView,
 } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 
@@ -48,10 +49,10 @@ export default function TodoDashboard() {
   const [listModalOpen, setListModalOpen] = useState(false);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f5f8ff' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f8ff' }}>
       <ScrollView 
         style={{ flex: 1 }} 
-        contentContainerStyle={{ padding: 16, paddingBottom: 140 }}
+        contentContainerStyle={{ padding: 16, paddingTop: 4, paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}
       >
         <Text style={s.title}>To‑Do</Text>
@@ -141,7 +142,7 @@ export default function TodoDashboard() {
         visible={listModalOpen}
         onClose={() => setListModalOpen(false)}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
