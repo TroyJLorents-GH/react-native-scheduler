@@ -3,7 +3,7 @@ import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Modal, Platform, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, Platform, SafeAreaView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
@@ -188,7 +188,7 @@ export default function DetailsScreen() {
   const earlyReminderOptions = ['None', '5 minutes before', '15 minutes before', '1 hour before', '1 day before'];
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => handleSave()}>
@@ -520,7 +520,7 @@ export default function DetailsScreen() {
         }}
         initialLocation={selectedLocation || undefined}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 

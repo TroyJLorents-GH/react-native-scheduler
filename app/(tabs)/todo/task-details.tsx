@@ -3,7 +3,7 @@ import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { Image, Linking, Modal, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Linking, Modal, SafeAreaView, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function TaskDetailsScreen() {
   const { id, autostart } = useLocalSearchParams<{ id: string; autostart?: string }>();
@@ -41,7 +41,7 @@ export default function TaskDetailsScreen() {
   const priorityAbbr = todo?.priority === 'high' ? 'H' : todo?.priority === 'medium' ? 'M' : todo?.priority === 'low' ? 'L' : undefined;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.push({
@@ -312,7 +312,7 @@ export default function TaskDetailsScreen() {
           </View>
         </Modal>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 

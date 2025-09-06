@@ -3,7 +3,7 @@ import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useMemo } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function ListItems() {
   const { listId } = useLocalSearchParams<{ listId: string }>();
@@ -83,7 +83,7 @@ export default function ListItems() {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -129,7 +129,7 @@ export default function ListItems() {
         <Ionicons name="add" size={24} color="#fff" />
         <Text style={styles.fabText}>New Reminder</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 

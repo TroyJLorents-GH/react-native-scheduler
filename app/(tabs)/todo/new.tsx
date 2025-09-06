@@ -17,6 +17,7 @@ import {
   View
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { SafeAreaView } from 'react-native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 export default function NewReminder() {
@@ -446,6 +447,7 @@ export default function NewReminder() {
   };
 
   return (
+    <SafeAreaView style={styles.container}>
     <KeyboardAwareScrollView 
       style={styles.container}
       contentContainerStyle={styles.scrollContent}
@@ -633,6 +635,7 @@ export default function NewReminder() {
         onCancel={hideDatePicker}
       />
     </KeyboardAwareScrollView>
+    </SafeAreaView>
   );
 }
 
