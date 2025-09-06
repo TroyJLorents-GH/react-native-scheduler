@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 0,
   },
   blockTitle: {
     color: '#fff',
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
     color: '#9aa3b2',
     fontSize: 12,
     marginBottom: 4,
-    marginTop: 2,
+    marginTop: 0,
   },
   blockNotes: {
     color: '#9aa3b2',
