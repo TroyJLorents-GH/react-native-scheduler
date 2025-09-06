@@ -18,12 +18,20 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
   const selectedDayKey = moment(date).format('YYYY-MM-DD');
 
   const dayTodos = useMemo(() => {
+    const selected = moment(date);
+    const isToday = selected.isSame(moment(), 'day');
     const filtered = [...todos]
-      .filter(t => t.dueDate && moment(t.dueDate).format('YYYY-MM-DD') === selectedDayKey)
+      .filter(t => {
+        if (!t.dueDate) return false;
+        const due = moment(t.dueDate);
+        if (due.isSame(selected, 'day')) return true;
+        // Roll over: when viewing today, include all incomplete tasks from past days
+        if (isToday && !t.done && due.isBefore(selected, 'day')) return true;
+        return false;
+      })
       .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
-    
     return filtered;
-  }, [todos, selectedDayKey]);
+  }, [todos, selectedDayKey, date]);
 
   // Dynamically extend visible hours to include tasks
   const hoursForTasks = dayTodos.map(t => new Date(t.dueDate as Date).getHours());
