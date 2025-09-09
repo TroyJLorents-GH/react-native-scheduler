@@ -39,14 +39,18 @@ export default function TodaysTasksScreen() {
     });
   }, [todos]);
 
-  const handleTodoPress = (todoId: string) => {
-    router.push({ pathname: '/todo/task-details', params: { todoId } });
+  const handleTodoPress = (todo: any) => {
+    if (todo.listId === 'focus') {
+      router.push({ pathname: '/(tabs)/today', params: { focusTaskId: todo.id } });
+    } else {
+      router.push({ pathname: '/todo/task-details', params: { id: todo.id } });
+    }
   };
 
   const renderTodo = ({ item }: { item: any }) => (
     <TouchableOpacity
       style={styles.todoItem}
-      onPress={() => handleTodoPress(item.id)}
+      onPress={() => handleTodoPress(item)}
       activeOpacity={0.7}
     >
       <View style={styles.todoLeft}>
