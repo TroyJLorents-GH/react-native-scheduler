@@ -125,19 +125,19 @@ export default function HomeDashboard() {
           </View>
         ) : weather ? (
           <>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <MaterialCommunityIcons 
                 name={weather.icon as any} 
                 size={42} 
                 color="#ffb64f" 
                 style={{ marginRight: 10 }} 
               />
-              <View>
-                <Text style={styles.weatherCity}>{weather.city}</Text>
-                <Text style={styles.weatherTemp}>{weather.temp}</Text>
-              </View>
+            <View>
+              <Text style={styles.weatherCity}>{weather.city}</Text>
+              <Text style={styles.weatherTemp}>{weather.temp}</Text>
             </View>
-            <Text style={styles.weatherDesc}>{weather.desc}</Text>
+          </View>
+        <Text style={styles.weatherDesc}>{weather.desc}</Text>
             
             {/* Additional weather details */}
             <View style={styles.weatherDetails}>
@@ -173,17 +173,17 @@ export default function HomeDashboard() {
           <View style={{ width: 140, height: 10, backgroundColor: '#f0f1f6', borderRadius: 6, overflow: 'hidden' }}>
             <View style={{ width: `${completionPct}%`, height: '100%', backgroundColor: '#67c99a' }} />
           </View>
-        </View>
-      </TouchableOpacity>
+            </View>
+        </TouchableOpacity>
 
       {/* Today's Schedule removed */}
 
       {/* Today's Tasks */}
       <View style={styles.card}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={styles.sectionTitle}>
+        <Text style={styles.sectionTitle}>
           <MaterialCommunityIcons name="check-circle-outline" size={21} color="#67c99a" />  Today's Tasks
-          </Text>
+        </Text>
           {displayTodos.length > 0 && (
             <TouchableOpacity onPress={() => setReorderMode(!reorderMode)}>
               <Text style={{ color: '#556de8', fontWeight: '600' }}>{reorderMode ? 'Done' : 'Reorder'}</Text>
@@ -233,8 +233,8 @@ export default function HomeDashboard() {
                   </Text>
                   <Text style={styles.todoNotes}>
                     {lists.find(l => l.id === item.listId)?.name || 'Reminders'}
-                  </Text>
-                </View>
+              </Text>
+            </View>
                 <TouchableOpacity onPress={() => {
                   // Check if this is a focus task (in Focus list)
                   if (item.listId === 'focus') {
@@ -254,8 +254,8 @@ export default function HomeDashboard() {
         <View style={styles.addButtonsRow}>
           <TouchableOpacity style={[styles.addBtn, styles.addBtnHalf]} onPress={() => router.push('/todo/new')}>
             <Ionicons name="add-circle" size={24} color="#67c99a" />
-            <Text style={styles.addBtnText}>Add To-Do</Text>
-          </TouchableOpacity>
+          <Text style={styles.addBtnText}>Add To-Do</Text>
+        </TouchableOpacity>
           <TouchableOpacity style={[styles.addBtn, styles.addBtnHalf]} onPress={() => router.push('/focus/new')}>
             <Ionicons name="timer-outline" size={24} color="#67c99a" />
             <Text style={styles.addBtnText}>Add Focus Time</Text>

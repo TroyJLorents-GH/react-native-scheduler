@@ -6,7 +6,15 @@ export default function TodoStackLayout() {
       <Stack.Screen name="index" />        {/* dashboard */}
       <Stack.Screen name="all" />
       <Stack.Screen name="completed" />
-      <Stack.Screen name="todays-tasks" />
+      <Stack.Screen 
+        name="todays-tasks" 
+        options={{
+          presentation: 'modal',
+          headerShown: true,
+          title: "Today's Tasks",
+          headerBackTitle: "Back"
+        }}
+      />
       <Stack.Screen name="priority" />
       <Stack.Screen name="scheduled" />
       <Stack.Screen name="lists" />
