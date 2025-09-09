@@ -161,7 +161,7 @@ export default function HomeDashboard() {
       </View>
 
       {/* Daily Goals */}
-      <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={() => router.push('/todo/todays-tasks')}>
+      <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={() => router.navigate('/todo/todays-tasks')}>
         <Text style={styles.sectionTitle}>
           <MaterialCommunityIcons name="target" size={21} color="#ff9a62" />  Daily Goals
         </Text>

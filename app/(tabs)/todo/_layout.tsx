@@ -9,7 +9,6 @@ export default function TodoStackLayout() {
       <Stack.Screen 
         name="todays-tasks" 
         options={{
-          presentation: 'modal',
           headerShown: true,
           title: "Today's Tasks",
           headerBackTitle: "Back"
