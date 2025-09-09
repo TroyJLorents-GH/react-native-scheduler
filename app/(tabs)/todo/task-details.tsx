@@ -2,7 +2,7 @@ import PomodoroTimer from '@/components/PomodoroTimer';
 import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Image, Linking, Modal, SafeAreaView, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function TaskDetailsScreen() {
@@ -13,6 +13,13 @@ export default function TaskDetailsScreen() {
   const [imageIndex, setImageIndex] = useState(0);
 
   const todo = todos.find(t => t.id === id);
+
+  // Redirect focus tasks to Focus tab
+  useEffect(() => {
+    if (todo?.listId === 'focus') {
+      router.replace({ pathname: '/(tabs)/today', params: { focusTaskId: todo.id } });
+    }
+  }, [todo]);
 
   if (!todo) {
     return (

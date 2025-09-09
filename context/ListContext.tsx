@@ -28,6 +28,7 @@ export const ListProvider: React.FC<{ children: React.ReactNode }> = ({ children
     { id: '2', name: 'Work', color: '#2ecc40', icon: 'briefcase' },
     { id: '3', name: 'Ideas', color: '#ff4136', icon: 'bulb' },
     { id: '4', name: 'Personal', color: '#b10dc9', icon: 'person' },
+    { id: 'focus', name: 'Focus', color: '#67c99a', icon: 'timer' },
   ]);
 
   const addList = (list: Omit<List, 'id'>) => setLists(prev => [

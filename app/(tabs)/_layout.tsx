@@ -32,11 +32,20 @@ export default function TabsLayout() {
         }} 
       />
       <Tabs.Screen 
-        name="focus" 
+        name="today" 
         options={{ 
           title: 'Focus',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="timer-outline" size={size} color={color} />
+          ),
+        }} 
+      />
+      <Tabs.Screen 
+        name="reminders" 
+        options={{ 
+          title: 'Settings',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" size={size} color={color} />
           ),
         }} 
       />

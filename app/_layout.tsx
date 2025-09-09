@@ -37,6 +37,8 @@
 
 import { Slot } from 'expo-router';
 import React from 'react';
+import 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { EventProvider } from '../context/EventContext';
 import { ListProvider } from '../context/ListContext';
 import { TempDetailsProvider } from '../context/TempDetailsContext';
@@ -44,14 +46,16 @@ import { TodoProvider } from '../context/TodoContext';
 
 export default function RootLayout() {
   return (
-    <EventProvider>
-      <ListProvider>
-        <TodoProvider>
-          <TempDetailsProvider>
-            <Slot />
-          </TempDetailsProvider>
-        </TodoProvider>
-      </ListProvider>
-    </EventProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <EventProvider>
+        <ListProvider>
+          <TodoProvider>
+            <TempDetailsProvider>
+              <Slot />
+            </TempDetailsProvider>
+          </TodoProvider>
+        </ListProvider>
+      </EventProvider>
+    </GestureHandlerRootView>
   );
 }

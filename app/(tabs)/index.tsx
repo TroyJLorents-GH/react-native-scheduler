@@ -1,14 +1,16 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import moment from 'moment';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useTodoContext } from '../../context/TodoContext';
+import DraggableFlatList from 'react-native-draggable-flatlist';
 import { useListContext } from '../../context/ListContext';
+import { Todo, useTodoContext } from '../../context/TodoContext';
 import { getCurrentWeather, WeatherData } from '../../services/weatherService';
 
 export default function HomeDashboard() {
-  const { todos } = useTodoContext();
+  const { todos, toggleTodo } = useTodoContext();
   const { lists } = useListContext();
   // const { user, isAuthenticated, isLoading: authLoading, signIn, signOut } = useGoogleAuth();
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -22,17 +24,78 @@ export default function HomeDashboard() {
     if (!todo.dueDate) return false;
     const due = moment(todo.dueDate);
     // Due today OR incomplete and past due (roll over)
+    const isToday = due.isSame(today, 'day') || due.isBefore(startOfToday);
+    
+    
+    return isToday;
+  });
+  // Daily Goals: match the pool shown in Today's Tasks (due today OR past-due rollovers)
+  const todaysPoolAll = todos.filter(todo => {
+    if (!todo.dueDate) return false;
+    const due = moment(todo.dueDate);
     return due.isSame(today, 'day') || due.isBefore(startOfToday);
   });
-  // Completion stats
-  const todaysTodosAll = todos.filter(todo => todo.dueDate && moment(todo.dueDate).isSame(today, 'day'));
-  const completedCount = todaysTodosAll.filter(t => t.done).length;
-  const totalCount = todaysTodosAll.length;
+  const completedCount = todaysPoolAll.filter(t => t.done).length;
+  const totalCount = todaysPoolAll.length;
   const completionPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   useEffect(() => {
     loadWeather();
   }, []);
+
+  // --- Reorder state for today's list ---
+  const [reorderMode, setReorderMode] = useState(false);
+  const [manualOrderIds, setManualOrderIds] = useState<string[] | null>(null);
+
+  const orderKey = `home_order_${today.format('YYYY-MM-DD')}`;
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const saved = await AsyncStorage.getItem(orderKey);
+        if (saved) setManualOrderIds(JSON.parse(saved));
+        else setManualOrderIds(null);
+      } catch {}
+    })();
+  }, [orderKey]);
+
+  const saveOrder = async (ids: string[]) => {
+    try {
+      await AsyncStorage.setItem(orderKey, JSON.stringify(ids));
+    } catch {}
+  };
+
+  const moveItem = (id: string, direction: 'up'|'down', renderedIds: string[]) => {
+    const current = manualOrderIds ?? renderedIds;
+    const list = [...current];
+    const idx = list.indexOf(id);
+    if (idx < 0) return;
+    const swapWith = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapWith < 0 || swapWith >= renderedIds.length) return;
+    // Ensure both ids exist in list; if not, seed from renderedIds
+    renderedIds.forEach(rid => { if (!list.includes(rid)) list.push(rid); });
+    const temp = list[idx];
+    list[idx] = list[swapWith];
+    list[swapWith] = temp;
+    setManualOrderIds(list);
+    saveOrder(list);
+  };
+
+  const displayTodos = useMemo(() => {
+    // Build default order by time-of-day to seed new tasks
+    const timeKey = (d?: Date) => {
+      if (!d) return Number.POSITIVE_INFINITY;
+      const dt = new Date(d);
+      return dt.getHours() * 60 + dt.getMinutes();
+    };
+    const defaultSorted = [...todaysTodos].sort((a,b) => timeKey(a.dueDate as Date) - timeKey(b.dueDate as Date));
+    const idToTodo = new Map(defaultSorted.map(t => [t.id, t] as const));
+    const baseIds = defaultSorted.map(t => t.id);
+    const order = (manualOrderIds ?? []).filter(id => idToTodo.has(id));
+    // Append any new tasks not in saved order
+    baseIds.forEach(id => { if (!order.includes(id)) order.push(id); });
+    return order.map(id => idToTodo.get(id)!).filter(Boolean);
+  }, [todaysTodos, manualOrderIds]);
 
   const loadWeather = async () => {
     try {
@@ -98,7 +161,7 @@ export default function HomeDashboard() {
       </View>
 
       {/* Daily Goals */}
-      <View style={styles.card}>
+      <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={() => router.push('/todo/todays-tasks')}>
         <Text style={styles.sectionTitle}>
           <MaterialCommunityIcons name="target" size={21} color="#ff9a62" />  Daily Goals
         </Text>
@@ -111,56 +174,93 @@ export default function HomeDashboard() {
             <View style={{ width: `${completionPct}%`, height: '100%', backgroundColor: '#67c99a' }} />
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
 
       {/* Today's Schedule removed */}
 
       {/* Today's Tasks */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={styles.sectionTitle}>
           <MaterialCommunityIcons name="check-circle-outline" size={21} color="#67c99a" />  Today's Tasks
-        </Text>
+          </Text>
+          {displayTodos.length > 0 && (
+            <TouchableOpacity onPress={() => setReorderMode(!reorderMode)}>
+              <Text style={{ color: '#556de8', fontWeight: '600' }}>{reorderMode ? 'Done' : 'Reorder'}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         {todaysTodos.length === 0 ? (
           <Text style={styles.emptyText}>No to-dos for today.</Text>
         ) : (
-          [...todaysTodos]
-            .slice(0, 5)
-            .map(todo => ( // Show only first 5 todos
-            <TouchableOpacity 
-              key={todo.id} 
-              style={styles.todoItem}
-              onPress={() => router.push({ pathname: '/todo/task-details', params: { id: todo.id } })}
-              activeOpacity={0.7}
-            >
-              <View style={styles.todoContent}>
-                <Text style={[
-                  styles.todoText,
-                  todo.done && { textDecorationLine: 'line-through', color: '#aaa' }
-                ]}>
-                  {todo.text}
-                </Text>
-                <Text style={styles.todoNotes}>
-                  {lists.find(l => l.id === todo.listId)?.name || 'Reminders'}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => router.push({ pathname: '/todo/task-details', params: { id: todo.id, autostart: '1' } })}>
-                <Ionicons
-                  name={'play-circle'}
-                  size={22}
-                  color={'#67c99a'}
-                  style={{ marginLeft: 9 }}
-                />
+          <DraggableFlatList<Todo>
+            data={displayTodos}
+            keyExtractor={(item: Todo) => item.id}
+            scrollEnabled={false}
+            containerStyle={{}}
+            onDragBegin={() => setReorderMode(true)}
+            onDragEnd={({ data }: { data: Todo[] }) => {
+              const subsetIds = data.map(t => t.id);
+              const baseAllIds = (manualOrderIds ?? displayTodos.map(t=>t.id)).filter(id => displayTodos.some(t=>t.id===id));
+              const others = baseAllIds.filter(id => !subsetIds.includes(id));
+              const newIds = subsetIds.concat(others);
+              setManualOrderIds(newIds);
+              saveOrder(newIds);
+              setReorderMode(false);
+            }}
+            renderItem={({ item, drag, isActive }: { item: Todo; drag: () => void; isActive: boolean }) => (
+              <TouchableOpacity 
+                style={[styles.todoItem, isActive && { opacity: 0.9 }]} 
+                onLongPress={drag}
+                activeOpacity={0.8}
+                onPress={() => {
+                  // Check if this is a focus task (in Focus list)
+                  if (item.listId === 'focus') {
+                    // Navigate to Focus tab with task pre-loaded using ID
+                    router.push({ pathname: '/(tabs)/today', params: { focusTaskId: item.id } });
+                  } else {
+                    // Regular task - go to task details
+                    router.push({ pathname: '/todo/task-details', params: { id: item.id } });
+                  }
+                }}
+              >
+                <TouchableOpacity onPress={() => toggleTodo(item.id)} style={{ marginRight: 8, marginTop: 2 }}>
+                  <Ionicons name={item.done ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={item.done ? '#67c99a' : '#bbb'} />
+                </TouchableOpacity>
+                <View style={styles.todoContent}>
+                  <Text style={[styles.todoText, item.done && { textDecorationLine: 'line-through', color: '#aaa' }]}>
+                    {item.text}
+                  </Text>
+                  <Text style={styles.todoNotes}>
+                    {lists.find(l => l.id === item.listId)?.name || 'Reminders'}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => {
+                  // Check if this is a focus task (in Focus list)
+                  if (item.listId === 'focus') {
+                    // Navigate to Focus tab with task pre-loaded using ID
+                    router.push({ pathname: '/(tabs)/today', params: { focusTaskId: item.id } });
+                  } else {
+                    // Regular task - go to task details
+                    router.push({ pathname: '/todo/task-details', params: { id: item.id, autostart: '1' } });
+                  }
+                }}>
+                  <Ionicons name={'play-circle'} size={22} color={'#67c99a'} style={{ marginLeft: 9 }} />
+                </TouchableOpacity>
               </TouchableOpacity>
-            </TouchableOpacity>
-          ))
+            )}
+          />
         )}
-        {todaysTodos.length > 5 && (
-          <Text style={styles.moreText}>+{todaysTodos.length - 5} more to-dos</Text>
-        )}
-        <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/todo/new')}>
-          <Ionicons name="add-circle" size={28} color="#67c99a" />
-          <Text style={styles.addBtnText}>Add To-Do</Text>
-        </TouchableOpacity>
+        <View style={styles.addButtonsRow}>
+          <TouchableOpacity style={[styles.addBtn, styles.addBtnHalf]} onPress={() => router.push('/todo/new')}>
+            <Ionicons name="add-circle" size={24} color="#67c99a" />
+            <Text style={styles.addBtnText}>Add To-Do</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.addBtn, styles.addBtnHalf]} onPress={() => router.push('/focus/new')}>
+            <Ionicons name="timer-outline" size={24} color="#67c99a" />
+            <Text style={styles.addBtnText}>Add Focus Time</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </ScrollView>
     </SafeAreaView>
@@ -334,15 +434,29 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
+  addButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 10,
+  },
   addBtn: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    marginTop: 10 
+    justifyContent: 'center',
+    backgroundColor: '#f8f9fa',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  addBtnHalf: {
+    flex: 1,
   },
   addBtnText: { 
-    color: '#556de8', 
-    fontWeight: 'bold', 
-    marginLeft: 7, 
-    fontSize: 16 
+    color: '#67c99a', 
+    fontWeight: '600', 
+    marginLeft: 6, 
+    fontSize: 14 
   },
 });

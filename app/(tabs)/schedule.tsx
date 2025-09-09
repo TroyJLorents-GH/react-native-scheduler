@@ -19,7 +19,7 @@ export default function ScheduleTab() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#000000ff' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f8ff' }}>
       <View style={styles.toggleBar}>
         <TouchableOpacity onPress={() => setViewMode('vertical')} style={[styles.toggleBtn, viewMode === 'vertical' && styles.toggleActive]}>
           <Text style={[styles.toggleText, viewMode === 'vertical' && styles.toggleTextActive]}>Vertical View</Text>

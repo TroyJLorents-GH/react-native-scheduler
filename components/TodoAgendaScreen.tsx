@@ -12,8 +12,12 @@ type Props = {
 function getSectionedTodos(todos: Todo[]) {
   const grouped: { [date: string]: Todo[] } = {};
   const today = moment().startOf('day');
+  const processedIds = new Set<string>(); // Track processed todos to avoid duplicates
+  
   todos.forEach(todo => {
-    if (!todo.dueDate) return;
+    if (!todo.dueDate || processedIds.has(todo.id)) return;
+    processedIds.add(todo.id);
+    
     const due = moment(todo.dueDate);
     // Rollover rule: past due incomplete -> show under today; past due completed -> hide
     if (due.isBefore(today)) {
@@ -28,6 +32,7 @@ function getSectionedTodos(todos: Todo[]) {
   return Object.entries(grouped)
     .sort(([a], [b]) => (a < b ? -1 : 1))
     .map(([date, dayTodos]) => ({
+      key: date, // stable section key
       title: moment(date).format('ddd D MMM YYYY'),
       day: moment(date),
       data: dayTodos.sort((a, b) => {
@@ -45,7 +50,10 @@ export default function TodoAgendaScreen({ todos }: Props) {
   return (
     <SectionList
       sections={sections}
-      keyExtractor={item => item.id}
+      keyExtractor={(item) => {
+        const ts = item.dueDate ? new Date(item.dueDate).getTime() : 0;
+        return `${item.id}-${ts}`;
+      }}
       renderSectionHeader={({ section: { title, day } }) => (
         <View style={styles.sectionHeader}>
           <View style={styles.dateRail}>
@@ -59,7 +67,13 @@ export default function TodoAgendaScreen({ todos }: Props) {
       renderItem={({ item }) => (
         <TouchableOpacity
           style={styles.itemCard}
-          onPress={() => router.push({ pathname: '/todo/task-details', params: { id: item.id } })}
+          onPress={() => {
+            if (item.listId === 'focus') {
+              router.push({ pathname: '/(tabs)/today', params: { focusTaskId: item.id } });
+            } else {
+              router.push({ pathname: '/todo/task-details', params: { id: item.id } });
+            }
+          }}
         >
           <View style={[styles.colorDot, { backgroundColor: item.done ? '#67c99a' : '#ffb86b' }]} />
           <View style={{ flex: 1 }}>
@@ -74,7 +88,13 @@ export default function TodoAgendaScreen({ todos }: Props) {
             ) : null}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity onPress={() => router.push({ pathname: '/todo/task-details', params: { id: item.id, autostart: '1' } })} style={{ marginRight: 10 }}>
+            <TouchableOpacity onPress={() => {
+              if (item.listId === 'focus') {
+                router.push({ pathname: '/(tabs)/today', params: { focusTaskId: item.id } });
+              } else {
+                router.push({ pathname: '/todo/task-details', params: { id: item.id, autostart: '1' } });
+              }
+            }} style={{ marginRight: 10 }}>
               <Ionicons name="play-circle" size={22} color="#67c99a" />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => toggleTodo(item.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>

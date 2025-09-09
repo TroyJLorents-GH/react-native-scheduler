@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   },
   selected: { borderWidth: 2, borderColor: '#007bff' },
   calTitle: { fontSize: 17, fontWeight: '600' },
-  calSource: { fontSize: 13, color: '#555' },
+  calSource: { fontSize: 13, color: '#555', fontWeight: '600' },
   addButton: {
     backgroundColor: '#007bff',
     borderRadius: 8,

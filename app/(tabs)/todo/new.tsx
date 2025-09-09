@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 60 : 20,
+    paddingTop: Platform.OS === 'ios' ? 40 : 20,
     paddingBottom: 16,
     borderBottomWidth: 0.5,
     borderBottomColor: '#38383a',
@@ -683,8 +683,8 @@ const styles = StyleSheet.create({
   inputContainer: {
     backgroundColor: '#1c1c1e',
     borderRadius: 10,
-    padding: 16,
-    marginBottom: 16,
+    padding: 12,
+    marginBottom: 12,
   },
   titleInput: {
     color: '#fff',

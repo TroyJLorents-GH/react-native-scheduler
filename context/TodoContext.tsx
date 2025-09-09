@@ -7,6 +7,7 @@ export type PomodoroSettings = {
   workUnit: 'min' | 'hour';
   breakTime: number;
   breakUnit: 'min' | 'hour';
+  sessions?: number;
 };
 
 export type Todo = {
@@ -109,7 +110,11 @@ export const TodoProvider: React.FC<{ children: React.ReactNode }> = ({ children
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(todos, replacer)).catch(() => {});
   }, [todos]);
 
-  const addTodo = (todo: Todo) => setTodos(prev => [...prev, todo]);
+  const addTodo = (todo: Todo) => {
+    // Ensure todo has an ID
+    const todoWithId = todo.id ? todo : { ...todo, id: Date.now().toString() };
+    setTodos(prev => [...prev, todoWithId]);
+  };
   
   const toggleTodo = (id: string) =>
     setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));

@@ -37,27 +37,38 @@ export default function ListItems() {
       
       <TouchableOpacity 
         style={styles.todoContent}
-        onPress={() => router.push({ pathname: '/todo/task-details', params: { id: item.id } })}
+        onPress={() => {
+          if (item.listId === 'focus') {
+            router.push({ pathname: '/(tabs)/today', params: { focusTaskId: item.id } });
+          } else {
+            router.push({ pathname: '/todo/task-details', params: { id: item.id } });
+          }
+        }}
       >
         <Text style={[styles.todoText, item.done && styles.doneText]}>
           {item.text}
         </Text>
-        {item.notes && (
-          <Text style={styles.notesText}>{item.notes}</Text>
-        )}
-        {item.dueDate && (
-          <View style={styles.dueDateContainer}>
-            <Ionicons name="calendar-outline" size={14} color="#6b7280" />
-            <Text style={styles.dueDateText}>
-              {new Date(item.dueDate).toLocaleDateString(undefined, { 
-                month: 'short', 
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
-            </Text>
-          </View>
-        )}
+        <>
+          {item.notes && (
+            <Text style={styles.notesText}>{item.notes}</Text>
+          )}
+          {item.dueDate && (
+            <View style={styles.dueDateContainer}>
+              <Ionicons name="calendar-outline" size={14} color="#6b7280" />
+              <Text style={styles.dueDateText}>
+                {new Date(item.dueDate).toLocaleDateString(undefined, { 
+                  month: 'short', 
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+                {item.listId === 'focus' && item.pomodoro?.workTime && (
+                  <Text style={styles.dueDateText}> for {item.pomodoro.workTime} min</Text>
+                )}
+              </Text>
+            </View>
+          )}
+        </>
         {item.subTasks && item.subTasks.length > 0 && (
           <View style={styles.subtasksContainer}>
             {item.subTasks.map((sub: any) => (
@@ -112,7 +123,7 @@ export default function ListItems() {
       <FlatList
         data={listTodos}
         renderItem={renderTodo}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => `${item.id}-${index}-${item.text}`}
         style={styles.list}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
@@ -121,13 +132,16 @@ export default function ListItems() {
       {/* FAB - New Reminder */}
       <TouchableOpacity 
         style={styles.fab}
-        onPress={() => router.push({
-          pathname: '/todo/new',
-          params: { preSelectedListId: String(listId) }
-        })}
+        onPress={() => {
+          if (listId === 'focus') {
+            router.push('/focus/new');
+          } else {
+            router.push({ pathname: '/todo/new', params: { preSelectedListId: String(listId) } });
+          }
+        }}
       >
-        <Ionicons name="add" size={24} color="#fff" />
-        <Text style={styles.fabText}>New Reminder</Text>
+        <Ionicons name={listId === 'focus' ? 'timer-outline' : 'add'} size={24} color="#fff" />
+        <Text style={styles.fabText}>{listId === 'focus' ? 'Add Focus Time' : 'New Reminder'}</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
