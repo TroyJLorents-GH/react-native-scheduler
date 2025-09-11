@@ -7,13 +7,13 @@ import { Link, router } from 'expo-router';
 import moment from 'moment';
 import React, { useMemo, useState } from 'react';
 import {
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-    SafeAreaView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 
@@ -26,8 +26,11 @@ export default function TodoDashboard() {
 
   // --- derived counts for the cards ---
   const counts = useMemo(() => {
-    const all = todos.filter(t => !t.done).length; // Only active todos
-    const scheduled = todos.filter(t => !!t.dueDate && !t.done).length;
+    const startOfToday = moment().startOf('day');
+    // All: active tasks due today or later (with a due date)
+    const all = todos.filter(t => !!t.dueDate && !t.done && moment(t.dueDate).isSameOrAfter(startOfToday)).length;
+    // Today's Tasks: active tasks due today only
+    const scheduled = todos.filter(t => !!t.dueDate && !t.done && moment(t.dueDate).isSame(startOfToday, 'day')).length;
     const completed = todos.filter(t => t.done).length;
     const todaysTasks = todos.filter(t => {
       if (t.done) return false; // Skip completed todos
@@ -60,7 +63,7 @@ export default function TodoDashboard() {
         {/* Cards grid */}
         <View style={s.grid}>
           <DashCard label="All"        count={counts.all}        href="/todo/all" />
-          <DashCard label="Scheduled"  count={counts.scheduled}  href="/todo/scheduled" />
+          <DashCard label="Today's Tasks"  count={counts.scheduled}  href="/todo/scheduled" />
           <DashCard label="Completed"  count={counts.completed}  href="/todo/completed" />
           <DashCard label="Priority"   count={counts.priority}   href="/todo/priority" />
           <DashCard label="Lists"      count={counts.lists}      href="/todo/lists" />

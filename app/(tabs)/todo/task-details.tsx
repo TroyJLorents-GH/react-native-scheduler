@@ -1,25 +1,22 @@
 import PomodoroTimer from '@/components/PomodoroTimer';
+import { useFocusContext } from '@/context/FocusContext';
 import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Image, Linking, Modal, SafeAreaView, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function TaskDetailsScreen() {
-  const { id, autostart } = useLocalSearchParams<{ id: string; autostart?: string }>();
+  const { id, autostart, from } = useLocalSearchParams<{ id: string; autostart?: string; from?: string }>();
   const { todos, toggleTodo, toggleSubTask, updateTodo } = useTodoContext();
+  const { startTaskSession } = useFocusContext();
   const [moreExpanded, setMoreExpanded] = useState(false);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [imageIndex, setImageIndex] = useState(0);
 
   const todo = todos.find(t => t.id === id);
 
-  // Redirect focus tasks to Focus tab
-  useEffect(() => {
-    if (todo?.listId === 'focus') {
-      router.replace({ pathname: '/(tabs)/today', params: { focusTaskId: todo.id } });
-    }
-  }, [todo]);
+  // Note: Do not auto-redirect focus tasks. Upstream navigation decides where to go.
 
   if (!todo) {
     return (
@@ -51,7 +48,23 @@ export default function TaskDetailsScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => {
+          // Always honor explicit source if provided for deterministic behavior
+          if (from) {
+            router.replace({ pathname: String(from) as any });
+            return;
+          }
+          try {
+            // @ts-ignore expo-router exposes canGoBack on router
+            if ((router as any).canGoBack?.()) {
+              router.back();
+            } else {
+              router.replace({ pathname: '/todo' as any });
+            }
+          } catch {
+            router.replace({ pathname: '/todo' as any });
+          }
+        }}>
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Task Details</Text>
@@ -121,6 +134,12 @@ export default function TaskDetailsScreen() {
               settings={todo.pomodoro}
               onComplete={handleTimerComplete}
               autoStart={shouldAutoStart}
+              onStart={() => startTaskSession({ id: todo.id, title: todo.text, workMinutes: Math.max(1, todo.pomodoro?.workTime || 25) })}
+              onPause={() => {/* keep global in sync */}}
+              onResume={() => {/* keep global in sync */}}
+              onStop={() => {/* keep global in sync */}}
+              taskId={todo.id}
+              taskTitle={todo.text}
             />
           </View>
         )}

@@ -7,15 +7,15 @@ import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
-  Alert,
-  Image,
-  Platform,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    Image,
+    Platform,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
@@ -215,10 +215,7 @@ export default function NewReminder() {
     
     // Navigate back to task details if editing, otherwise to list items
     if (isEditing) {
-      router.push({
-        pathname: '/todo/task-details',
-        params: { id: editId }
-      });
+      router.push({ pathname: '/task-details', params: { id: editId } });
     } else {
       router.push({
         pathname: '/todo/list-items',

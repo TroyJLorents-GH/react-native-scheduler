@@ -41,7 +41,7 @@ export default function ListItems() {
           if (item.listId === 'focus') {
             router.push({ pathname: '/(tabs)/today', params: { focusTaskId: item.id } });
           } else {
-            router.push({ pathname: '/todo/task-details', params: { id: item.id } });
+            router.push({ pathname: '/task-details', params: { id: item.id, from: '/todo/list-items' } });
           }
         }}
       >

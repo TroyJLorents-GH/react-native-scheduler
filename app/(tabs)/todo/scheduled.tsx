@@ -8,16 +8,16 @@ export default function ScheduledTodosScreen() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backButton}>
+        <TouchableOpacity onPress={() => router.replace('/todo' as any)} style={s.backButton}>
           <Ionicons name="arrow-back" size={24} color="#374151" />
         </TouchableOpacity>
-        <Text style={s.title}>Scheduled</Text>
+        <Text style={s.title}>Today's Tasks</Text>
         <View style={s.placeholder} />
       </View>
       
       <SmartListScreen
         title=""
-        filter={todo => !!todo.dueDate && !todo.done}
+        filter={todo => !!todo.dueDate && !todo.done && new Date(todo.dueDate).toDateString() === new Date().toDateString()}
       />
     </View>
   );

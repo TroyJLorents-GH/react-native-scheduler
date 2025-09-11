@@ -57,16 +57,18 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import { useFocusContext } from '../../context/FocusContext';
 import { useTodoContext } from '../../context/TodoContext';
 
 const STATS_KEY_PREFIX = 'focus.stats.'; // focus.stats.YYYY-MM-DD
 const FOCUS_TITLE_COLOR_KEY = 'focus.title.color';
 
 export default function FocusTab() {
+  const { startFocusSession } = useFocusContext();
   const { focusTask, focusTaskId } = useLocalSearchParams();
   const { todos, updateTodo } = useTodoContext();
   const [title, setTitle] = useState('Reading');
@@ -243,6 +245,9 @@ export default function FocusTab() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <TouchableOpacity onPress={() => router.back?.()} style={{ position: 'absolute', left: 16, top: 16, zIndex: 10, padding: 8 }}>
+        <Ionicons name="arrow-back" size={22} color="#e7e7ea" />
+      </TouchableOpacity>
       {/* Title pill */}
       <View style={styles.titlePill}>
         <View style={[styles.titleBox, { backgroundColor: titleColor }]}>
@@ -327,7 +332,7 @@ export default function FocusTab() {
           </View>
           <View style={styles.controlsRow}>
             {phase === 'idle' && (
-              <TouchableOpacity style={[styles.ctrlBtn, { backgroundColor: titleColor }]} onPress={start}>
+              <TouchableOpacity style={[styles.ctrlBtn, { backgroundColor: titleColor }]} onPress={() => { start(); startFocusSession({ title, workMinutes: Math.max(1, Math.floor(workLenSec/60)) }); }}>
                 <Text style={styles.ctrlTxt}>Start to Focus</Text>
               </TouchableOpacity>
             )}

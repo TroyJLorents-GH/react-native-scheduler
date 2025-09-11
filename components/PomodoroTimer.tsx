@@ -1,17 +1,26 @@
 import { PomodoroSettings } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useFocusContext } from '../context/FocusContext';
 
 interface PomodoroTimerProps {
   settings: PomodoroSettings;
   onComplete?: () => void;
   autoStart?: boolean;
+  onStart?: () => void; // called when entering first work phase
+  onPause?: () => void;
+  onResume?: () => void;
+  onStop?: () => void;
+  taskId?: string;        // when provided, binds to global session for this task
+  taskTitle?: string;
 }
 
 type TimerState = 'idle' | 'work' | 'break' | 'paused';
 
-export default function PomodoroTimer({ settings, onComplete, autoStart }: PomodoroTimerProps) {
+export default function PomodoroTimer({ settings, onComplete, autoStart, onStart, onPause, onResume, onStop, taskId, taskTitle }: PomodoroTimerProps) {
+  const focus = useFocusContext();
+  const isBoundToTask = useMemo(() => !!(taskId && focus.session && focus.session.source==='task' && focus.session.id===taskId), [taskId, focus.session]);
   const [timerState, setTimerState] = useState<TimerState>('idle');
   const [timeLeft, setTimeLeft] = useState(0);
   const [currentPhase, setCurrentPhase] = useState<'work' | 'break'>('work');
@@ -31,23 +40,33 @@ export default function PomodoroTimer({ settings, onComplete, autoStart }: Pomod
 
   // Start timer
   const startTimer = () => {
+    if (isBoundToTask) {
+      focus.resume();
+      try { onResume && onResume(); } catch {}
+      return;
+    }
     if (timerState === 'idle') {
       const workSeconds = getTimeInSeconds(settings.workTime, settings.workUnit);
       setTimeLeft(workSeconds);
       setCurrentPhase('work');
       setTimerState('work');
+      try { onStart && onStart(); } catch {}
     } else if (timerState === 'paused') {
       setTimerState(currentPhase);
+      try { onResume && onResume(); } catch {}
     }
   };
 
   // Pause timer
-  const pauseTimer = () => {
-    setTimerState('paused');
+  const pauseTimer = () => { 
+    if (isBoundToTask) { focus.pause(); }
+    setTimerState('paused'); 
+    try { onPause && onPause(); } catch {} 
   };
 
   // Stop timer
   const stopTimer = () => {
+    if (isBoundToTask) { focus.stop(); }
     setTimerState('idle');
     setTimeLeft(0);
     setCurrentPhase('work');
@@ -55,6 +74,7 @@ export default function PomodoroTimer({ settings, onComplete, autoStart }: Pomod
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
+    try { onStop && onStop(); } catch {}
   };
 
   // Handle timer completion
@@ -90,6 +110,7 @@ export default function PomodoroTimer({ settings, onComplete, autoStart }: Pomod
 
   // Timer effect
   useEffect(() => {
+    if (isBoundToTask) return; // external session drives time
     if (timerState === 'work' || timerState === 'break') {
       intervalRef.current = setInterval(() => {
         setTimeLeft((prev) => {
@@ -112,18 +133,26 @@ export default function PomodoroTimer({ settings, onComplete, autoStart }: Pomod
         clearInterval(intervalRef.current);
       }
     };
-  }, [timerState, currentPhase]);
+  }, [timerState, currentPhase, isBoundToTask]);
 
   // Autostart on mount if requested
   useEffect(() => {
+    if (isBoundToTask) return; // handled by global session
     if (autoStart && settings.enabled) {
       // Defer to ensure initial render completes
-      const id = setTimeout(() => {
-        startTimer();
-      }, 0);
+      const id = setTimeout(() => { startTimer(); }, 0);
       return () => clearTimeout(id);
     }
-  }, [autoStart, settings.enabled]);
+  }, [autoStart, settings.enabled, isBoundToTask]);
+
+  // When bound to global session, mirror its state/time into the UI
+  useEffect(() => {
+    if (!isBoundToTask) return;
+    setTimeLeft(focus.session?.remainingSec || 0);
+    const phase: TimerState = focus.session?.phase === 'paused' ? 'paused' : (focus.session?.phase === 'work' ? 'work' : focus.session?.phase === 'break' ? 'break' : 'idle');
+    setTimerState(phase);
+    setCurrentPhase(focus.session?.phase === 'break' ? 'break' : 'work');
+  }, [isBoundToTask, focus.session]);
 
   const getPhaseText = () => {
     switch (currentPhase) {

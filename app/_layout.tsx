@@ -39,7 +39,9 @@ import { Slot } from 'expo-router';
 import React from 'react';
 import 'react-native-gesture-handler';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import GlobalFocusBanner from '../components/GlobalFocusBanner';
 import { EventProvider } from '../context/EventContext';
+import { FocusProvider } from '../context/FocusContext';
 import { ListProvider } from '../context/ListContext';
 import { TempDetailsProvider } from '../context/TempDetailsContext';
 import { TodoProvider } from '../context/TodoContext';
@@ -50,9 +52,12 @@ export default function RootLayout() {
       <EventProvider>
         <ListProvider>
           <TodoProvider>
-            <TempDetailsProvider>
-              <Slot />
-            </TempDetailsProvider>
+            <FocusProvider>
+              <TempDetailsProvider>
+                <GlobalFocusBanner />
+                <Slot />
+              </TempDetailsProvider>
+            </FocusProvider>
           </TodoProvider>
         </ListProvider>
       </EventProvider>

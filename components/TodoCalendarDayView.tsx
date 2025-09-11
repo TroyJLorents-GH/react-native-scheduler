@@ -112,20 +112,20 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
                       </Text>
                       <View style={styles.blockActions}>
                         <TouchableOpacity 
-                          onPress={() => router.push({ pathname: '/todo/task-details', params: { id: todo.id } })}
+                          onPress={() => router.push({ pathname: '/task-details', params: { id: todo.id, from: '/(tabs)/schedule' } })}
                           style={styles.expandButton}
                         >
                           <Ionicons 
                             name={"ellipsis-horizontal"}
-                            size={16} 
+                            size={26} 
                             color="#9aa3b2" 
                           />
                         </TouchableOpacity>
                         <TouchableOpacity 
-                          onPress={() => router.push({ pathname: '/todo/task-details', params: { id: todo.id, autostart: '1' } })}
+                          onPress={() => router.push({ pathname: '/task-details', params: { id: todo.id, autostart: '1', from: '/(tabs)/schedule' } })}
                           style={styles.playButton}
                         >
-                          <Ionicons name="play-circle" size={20} color="#67c99a" />
+                          <Ionicons name="play-circle" size={26} color="#67c99a" />
                         </TouchableOpacity>
                       </View>
                     </View>

@@ -6,14 +6,8 @@ export default function TodoStackLayout() {
       <Stack.Screen name="index" />        {/* dashboard */}
       <Stack.Screen name="all" />
       <Stack.Screen name="completed" />
-      <Stack.Screen 
-        name="todays-tasks" 
-        options={{
-          headerShown: true,
-          title: "Today's Tasks",
-          headerBackTitle: "Back"
-        }}
-      />
+      {/* todays-tasks moved to app root; keep here for deep links if needed but hidden */}
+      <Stack.Screen name="todays-tasks" options={{ headerShown: false }} />
       <Stack.Screen name="priority" />
       <Stack.Screen name="scheduled" />
       <Stack.Screen name="lists" />

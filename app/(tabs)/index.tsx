@@ -161,7 +161,7 @@ export default function HomeDashboard() {
       </View>
 
       {/* Daily Goals */}
-      <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={() => router.navigate('/todo/todays-tasks')}>
+      <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={() => router.push('/todays-tasks')}>
         <Text style={styles.sectionTitle}>
           <MaterialCommunityIcons name="target" size={21} color="#ff9a62" />  Daily Goals
         </Text>
@@ -214,13 +214,10 @@ export default function HomeDashboard() {
                 onLongPress={drag}
                 activeOpacity={0.8}
                 onPress={() => {
-                  // Check if this is a focus task (in Focus list)
                   if (item.listId === 'focus') {
-                    // Navigate to Focus tab with task pre-loaded using ID
                     router.push({ pathname: '/(tabs)/today', params: { focusTaskId: item.id } });
                   } else {
-                    // Regular task - go to task details
-                    router.push({ pathname: '/todo/task-details', params: { id: item.id } });
+                    router.push({ pathname: '/task-details', params: { id: item.id } });
                   }
                 }}
               >
@@ -236,16 +233,13 @@ export default function HomeDashboard() {
               </Text>
             </View>
                 <TouchableOpacity onPress={() => {
-                  // Check if this is a focus task (in Focus list)
                   if (item.listId === 'focus') {
-                    // Navigate to Focus tab with task pre-loaded using ID
                     router.push({ pathname: '/(tabs)/today', params: { focusTaskId: item.id } });
                   } else {
-                    // Regular task - go to task details
-                    router.push({ pathname: '/todo/task-details', params: { id: item.id, autostart: '1' } });
+                    router.push({ pathname: '/task-details', params: { id: item.id, autostart: '1' } });
                   }
                 }}>
-                  <Ionicons name={'play-circle'} size={22} color={'#67c99a'} style={{ marginLeft: 9 }} />
+                  <Ionicons name={'play-circle'} size={26} color={'#67c99a'} style={{ marginLeft: 9 }} />
                 </TouchableOpacity>
               </TouchableOpacity>
             )}

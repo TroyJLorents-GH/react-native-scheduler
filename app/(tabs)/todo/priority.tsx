@@ -8,7 +8,7 @@ export default function PriorityTodosScreen() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backButton}>
+        <TouchableOpacity onPress={() => router.replace('/todo' as any)} style={s.backButton}>
           <Ionicons name="arrow-back" size={24} color="#374151" />
         </TouchableOpacity>
         <Text style={s.title}>Priority</Text>
@@ -17,7 +17,7 @@ export default function PriorityTodosScreen() {
       
       <SmartListScreen
         title=""
-        filter={todo => todo.priority === 'high'}
+        filter={todo => todo.priority === 'high' && !todo.done}
       />
     </View>
   );

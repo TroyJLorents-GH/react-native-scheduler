@@ -146,10 +146,7 @@ export default function DetailsScreen() {
       });
       
       // Navigate to task details page
-      router.push({
-        pathname: '/todo/task-details',
-        params: { id: editId }
-      });
+      router.push({ pathname: '/task-details', params: { id: editId } });
     } else {
       // When creating new, navigate back with all the details as parameters
       router.replace({

@@ -71,7 +71,7 @@ export default function TodoAgendaScreen({ todos }: Props) {
             if (item.listId === 'focus') {
               router.push({ pathname: '/(tabs)/today', params: { focusTaskId: item.id } });
             } else {
-              router.push({ pathname: '/todo/task-details', params: { id: item.id } });
+              router.push({ pathname: '/task-details', params: { id: item.id, from: '/(tabs)/schedule' } });
             }
           }}
         >
@@ -92,7 +92,7 @@ export default function TodoAgendaScreen({ todos }: Props) {
               if (item.listId === 'focus') {
                 router.push({ pathname: '/(tabs)/today', params: { focusTaskId: item.id } });
               } else {
-                router.push({ pathname: '/todo/task-details', params: { id: item.id, autostart: '1' } });
+                router.push({ pathname: '/task-details', params: { id: item.id, autostart: '1', from: '/(tabs)/schedule' } });
               }
             }} style={{ marginRight: 10 }}>
               <Ionicons name="play-circle" size={22} color="#67c99a" />
@@ -137,10 +137,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 7,
   },
-  dayName: { color: '#ffc863', fontWeight: 'bold', fontSize: 14, letterSpacing: 1 },
+  dayName: { color: '#45b7d1', fontWeight: 'bold', fontSize: 14, letterSpacing: 1 },
   dayNum: { color: '#fff', fontWeight: 'bold', fontSize: 22 },
-  monthYear: { color: '#ffb86b', fontSize: 13, fontWeight: '600', marginTop: -1 },
-  sectionTitle: { color: '#aaa', fontSize: 15, fontWeight: '600', marginLeft: 6 },
+  monthYear: { color: '#45b7d1', fontSize: 13, fontWeight: '600', marginTop: -1 },
+  sectionTitle: { color: '#aaa1d', fontSize: 15, fontWeight: '600', marginLeft: 6 },
   itemCard: {
     flexDirection: 'row',
     alignItems: 'center',

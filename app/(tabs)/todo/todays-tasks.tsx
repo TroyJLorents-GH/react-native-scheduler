@@ -43,7 +43,7 @@ export default function TodaysTasksScreen() {
     if (todo.listId === 'focus') {
       router.push({ pathname: '/(tabs)/today', params: { focusTaskId: todo.id } });
     } else {
-      router.push({ pathname: '/todo/task-details', params: { id: todo.id } });
+      router.push({ pathname: '/task-details', params: { id: todo.id, from: '/(tabs)/todo/todays-tasks' } });
     }
   };
 
@@ -106,7 +106,7 @@ export default function TodaysTasksScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={20} color="#007AFF" />
         </TouchableOpacity>
         <Text style={styles.title}>Today's Tasks</Text>
         <View style={styles.placeholder} />
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 60,
+    paddingTop: 10,
     paddingBottom: 16,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   title: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#1c1c1e',
   },
