@@ -2,7 +2,7 @@ import PomodoroSettings from '@/components/PomodoroSettings';
 import { useListContext } from '@/context/ListContext';
 import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useRef, useState } from 'react';
@@ -406,13 +406,13 @@ export default function NewReminder() {
       });
       if (!result.canceled && result.assets && result.assets[0]?.uri) {
         const src = result.assets![0]!.uri;
-        // Ensure app photos directory exists
-        const photosDir = FileSystem.documentDirectory + 'photos/';
-        try { await FileSystem.makeDirectoryAsync(photosDir, { intermediates: true }); } catch {}
-        const dest = photosDir + `photo_${Date.now()}.jpg`;
+        // Ensure app photos directory exists (Expo FS v4 API)
+        const photosDir = new Directory(Paths.document, 'photos');
+        try { photosDir.create({ intermediates: true, idempotent: true }); } catch {}
+        const destFile = new File(photosDir, `photo_${Date.now()}.jpg`);
         try {
-          await FileSystem.copyAsync({ from: src, to: dest });
-          setImages(prev => Array.from(new Set([...prev, dest])));
+          new File(src).copy(destFile);
+          setImages(prev => Array.from(new Set([...prev, destFile.uri])));
         } catch (e) {
           // Fall back to original uri if copy fails
           setImages(prev => Array.from(new Set([...prev, src])));
@@ -438,8 +438,8 @@ export default function NewReminder() {
   const removeImage = async (uri: string) => {
     setImages(prev => prev.filter(u => u !== uri));
     // Attempt to delete file if it's stored in our documents directory
-    if (uri.startsWith(FileSystem.documentDirectory || '')) {
-      try { await FileSystem.deleteAsync(uri, { idempotent: true }); } catch {}
+    if (uri.startsWith(Paths.document.uri || '')) {
+      try { new File(uri).delete(); } catch {}
     }
   };
 
