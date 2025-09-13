@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import moment from 'moment';
-import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { Animated, PanResponder, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Todo, useTodoContext } from '../context/TodoContext';
 
 type Props = {
@@ -14,6 +14,9 @@ type Props = {
 export default function TodoCalendarDayView({ todos, date, onDateChange }: Props) {
   const { updateTodo } = useTodoContext();
   const [expandedBlocks, setExpandedBlocks] = useState<Set<string>>(new Set());
+  const dragYRefs = useRef<Record<string, Animated.Value>>(Object.create(null));
+  const [isDragging, setIsDragging] = useState(false);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
 
   const selectedDayKey = moment(date).format('YYYY-MM-DD');
 
@@ -50,98 +53,171 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
     setExpandedBlocks(newExpanded);
   };
 
+  // Swipe left/right anywhere in the view to change the date
+  const containerPan = useMemo(() =>
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_evt, gs) => !isDragging && Math.abs(gs.dx) > 25 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5,
+      onPanResponderRelease: (_evt, gs) => {
+        if (gs.dx > 40) {
+          onDateChange(moment(date).subtract(1, 'day').toDate());
+        } else if (gs.dx < -40) {
+          onDateChange(moment(date).add(1, 'day').toDate());
+        }
+      },
+    })
+  , [date, isDragging, onDateChange]);
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity 
-          onPress={() => onDateChange(moment(date).subtract(1, 'day').toDate())} 
-          style={styles.headerBtn}
-        >
-          <Ionicons name="chevron-back" size={18} color="#9aa3b2" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{moment(date).format('dddd, MMM D')}</Text>
-        <TouchableOpacity 
-          onPress={() => onDateChange(moment(date).add(1, 'day').toDate())} 
-          style={styles.headerBtn}
-        >
-          <Ionicons name="chevron-forward" size={18} color="#9aa3b2" />
-        </TouchableOpacity>
-      </View>
+    <View style={{ flex: 1 }} {...containerPan.panHandlers}>
+      <ScrollView contentContainerStyle={styles.container} scrollEnabled={!isDragging}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity 
+            onPress={() => onDateChange(moment(date).subtract(1, 'day').toDate())} 
+            style={styles.headerBtn}
+          >
+            <Ionicons name="chevron-back" size={18} color="#9aa3b2" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{moment(date).format('dddd, MMM D')}</Text>
+          <TouchableOpacity 
+            onPress={() => onDateChange(moment(date).add(1, 'day').toDate())} 
+            style={styles.headerBtn}
+          >
+            <Ionicons name="chevron-forward" size={18} color="#9aa3b2" />
+          </TouchableOpacity>
+        </View>
 
-      {Array.from({ length: endHour - startHour + 1 }).map((_, idx) => {
-        const hour = startHour + idx;
-        const label = moment().hour(hour).minute(0).format('hh:00 a');
-        const itemsThisHour = dayTodos.filter(t => new Date(t.dueDate as Date).getHours() === hour);
-        
-        return (
-          <View key={hour} style={styles.hourRow}>
-            <Text style={styles.hourLabel}>{label}</Text>
-            <View style={styles.hourContent}>
-              {itemsThisHour.map(todo => {
-                const computedDuration = (() => {
-                  if (todo.pomodoro?.enabled) {
-                    const w = todo.pomodoro.workTime || 25;
-                    const unit = todo.pomodoro.workUnit || 'min';
-                    return Math.max(15, unit === 'hour' ? w * 60 : w);
-                  }
-                  return Math.max(15, todo.durationMinutes || 60);
-                })();
-                
-                const isExpanded = expandedBlocks.has(todo.id);
-                
-                // Calculate position and height
-                const startMinutes = moment(todo.dueDate).minutes();
-                const topOffset = (startMinutes / 60) * 80; // 80px per hour
-                const baseHeight = Math.max((computedDuration / 60) * 80, 60); // Increased minimum height
-                const blockHeight = isExpanded ? baseHeight + 50 : baseHeight; // Add more space for expanded content
+        {Array.from({ length: endHour - startHour + 1 }).map((_, idx) => {
+          const hour = startHour + idx;
+          const label = moment().hour(hour).minute(0).format('hh:00 a');
+          const itemsThisHour = dayTodos.filter(t => new Date(t.dueDate as Date).getHours() === hour);
 
-                return (
-                  <View 
-                    key={todo.id} 
-                    style={[
-                      styles.block, 
-                      { 
-                        top: topOffset,
-                        height: blockHeight,
+          return (
+            <View key={hour} style={styles.hourRow}>
+              <Text style={styles.hourLabel}>{label}</Text>
+              <View style={styles.hourContent}>
+                {itemsThisHour.map(todo => {
+                  const computedDuration = (() => {
+                    if (todo.pomodoro?.enabled) {
+                      const w = todo.pomodoro.workTime || 25;
+                      const unit = todo.pomodoro.workUnit || 'min';
+                      return Math.max(15, unit === 'hour' ? w * 60 : w);
+                    }
+                    return Math.max(15, todo.durationMinutes || 60);
+                  })();
+
+                  const isExpanded = expandedBlocks.has(todo.id);
+
+                  // Calculate position and height
+                  const startMinutes = moment(todo.dueDate).minutes();
+                  const topOffset = (startMinutes / 60) * 80; // 80px per hour
+                  const baseHeight = Math.max((computedDuration / 60) * 80, 60); // Increased minimum height
+                  const blockHeight = isExpanded ? baseHeight + 50 : baseHeight; // Add more space for expanded content
+
+                  // Helper for animated drag value per block
+                  const getDragY = (id: string) => {
+                    if (!dragYRefs.current[id]) {
+                      dragYRefs.current[id] = new Animated.Value(0);
+                    }
+                    return dragYRefs.current[id];
+                  };
+
+                  // Drag-to-reschedule by hour (snap)
+                  const blockPan = PanResponder.create({
+                    onStartShouldSetPanResponder: () => false,
+                    onMoveShouldSetPanResponder: (_evt, gs) => Math.abs(gs.dy) > 8 && Math.abs(gs.dy) > Math.abs(gs.dx),
+                    onPanResponderGrant: () => {
+                      setIsDragging(true);
+                      setDraggingId(todo.id);
+                    },
+                    onPanResponderMove: Animated.event([null, { dy: getDragY(todo.id) }], { useNativeDriver: false }),
+                    onPanResponderTerminationRequest: () => false,
+                    onPanResponderRelease: (_evt, gs) => {
+                      const dy = gs.dy || 0;
+                      // Snap by 15-minute increments (80px per hour => 20px per 15min)
+                      const quarterHeightPx = 80 / 4; // 20
+                      const quarters = Math.round(dy / quarterHeightPx);
+                      const deltaMinutes = quarters * 15;
+                      Animated.timing(getDragY(todo.id), { toValue: 0, duration: 120, useNativeDriver: false }).start();
+                      setIsDragging(false);
+                      if (deltaMinutes !== 0) {
+                        const original = moment(todo.dueDate);
+                        const base = moment(date)
+                          .hour(original.hour())
+                          .minute(original.minute())
+                          .second(0)
+                          .millisecond(0)
+                          .add(deltaMinutes, 'minutes');
+                        // Constrain between 06:00 and 22:00
+                        const earliest = moment(date).hour(6).minute(0).second(0).millisecond(0);
+                        const latest = moment(date).hour(22).minute(0).second(0).millisecond(0);
+                        const clamped = base.isBefore(earliest) ? earliest : base.isAfter(latest) ? latest : base;
+                        updateTodo(todo.id, { dueDate: clamped.toDate() });
                       }
-                    ]}
-                  >
-                    <View style={styles.blockHeader}>
-                      <Text style={styles.blockTitle} numberOfLines={isExpanded ? 3 : 1}>
-                        {todo.text}
-                      </Text>
-                      <View style={styles.blockActions}>
-                        <TouchableOpacity 
-                          onPress={() => router.push({ pathname: '/task-details', params: { id: todo.id, from: '/(tabs)/schedule' } })}
-                          style={styles.expandButton}
-                        >
-                          <Ionicons 
-                            name={"ellipsis-horizontal"}
-                            size={26} 
-                            color="#9aa3b2" 
-                          />
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                          onPress={() => router.push({ pathname: '/task-details', params: { id: todo.id, autostart: '1', from: '/(tabs)/schedule' } })}
-                          style={styles.playButton}
-                        >
-                          <Ionicons name="play-circle" size={26} color="#67c99a" />
-                        </TouchableOpacity>
+                      setDraggingId(null);
+                    },
+                    onPanResponderTerminate: () => {
+                      Animated.timing(getDragY(todo.id), { toValue: 0, duration: 120, useNativeDriver: false }).start();
+                      setIsDragging(false);
+                      setDraggingId(null);
+                    }
+                  });
+
+                  return (
+                    <Animated.View 
+                      key={todo.id} 
+                      style={[
+                        styles.block, 
+                        { 
+                          top: topOffset,
+                          height: blockHeight,
+                        },
+                        { transform: [{ translateY: getDragY(todo.id) }] },
+                        { zIndex: draggingId === todo.id ? 10 : 2 }
+                      ]}
+                      {...blockPan.panHandlers}
+                    >
+                      <View style={styles.blockHeader}>
+                        <Text style={styles.blockTitle} numberOfLines={2}>
+                          {todo.text}
+                        </Text>
+                        <View style={styles.blockActions}>
+                          <TouchableOpacity 
+                            onPress={() => router.push({ pathname: '/task-details', params: { id: todo.id, from: '/(tabs)/schedule' } })}
+                            style={styles.expandButton}
+                          >
+                            <Ionicons 
+                              name={"ellipsis-horizontal"}
+                              size={26} 
+                              color="#9aa3b2" 
+                            />
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            onPress={() => {
+                              if (todo.listId === 'focus') {
+                                router.push({ pathname: '/(tabs)/today', params: { focusTaskId: todo.id } });
+                              } else {
+                                router.push({ pathname: '/task-details', params: { id: todo.id, autostart: '1', from: '/(tabs)/schedule' } });
+                              }
+                            }}
+                            style={styles.playButton}
+                          >
+                            <Ionicons name="play-circle" size={26} color="#67c99a" />
+                          </TouchableOpacity>
+                        </View>
                       </View>
-                    </View>
-                    
-                    <Text style={styles.blockTime}>
-                      {moment(todo.dueDate).format('h:mm A')} - {moment(todo.dueDate).add(computedDuration, 'minutes').format('h:mm A')}
-                    </Text>
-                  </View>
-                );
-              })}
+                      <Text style={styles.blockTime}>
+                        {moment(todo.dueDate).format('h:mm A')} - {moment(todo.dueDate).add(computedDuration, 'minutes').format('h:mm A')}
+                      </Text>
+                    </Animated.View>
+                  );
+                })}
+              </View>
             </View>
-          </View>
-        );
-      })}
-      <View style={{ height: 40 }} />
-    </ScrollView>
+          );
+        })}
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </View>
   );
 }
 
@@ -224,7 +300,7 @@ const styles = StyleSheet.create({
   blockTime: {
     color: '#9aa3b2',
     fontSize: 12,
-    marginBottom: 4,
+    marginBottom: 0,
     marginTop: 0,
   },
   blockNotes: {

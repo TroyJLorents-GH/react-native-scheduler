@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     Alert,
     FlatList,
@@ -58,10 +58,13 @@ export default function LocationSearchModal({
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
   });
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
     if (visible) {
+      // Start a new Places session when modal becomes visible
+      try { googlePlacesService.newSessionToken(); } catch {}
       getCurrentLocation();
     }
     // load recent locations
@@ -78,6 +81,7 @@ export default function LocationSearchModal({
       if ((global as any).searchTimeout) {
         clearTimeout((global as any).searchTimeout);
       }
+      try { googlePlacesService.clearSessionToken(); } catch {}
       showSub.remove();
       hideSub.remove();
     };
@@ -109,6 +113,7 @@ export default function LocationSearchModal({
   const searchAutocomplete = async (query: string) => {
     if (query.trim().length < 1) {
       setCompletions([]);
+      setErrorMsg(null);
       return;
     }
 
@@ -120,8 +125,9 @@ export default function LocationSearchModal({
         currentLocation.coords.longitude
       );
       setCompletions(results);
-    } catch (error) {
-      console.error('Error getting autocomplete:', error);
+      setErrorMsg(null);
+    } catch (error: any) {
+      setErrorMsg('Location autocomplete unavailable. Check API key restrictions.');
       setCompletions([]);
     }
   };
@@ -129,6 +135,7 @@ export default function LocationSearchModal({
   const searchLocations = async (query: string) => {
     if (query.trim().length < 1) {
       setSearchResults([]);
+      setErrorMsg(null);
       return;
     }
 
@@ -197,7 +204,7 @@ export default function LocationSearchModal({
       // Clear completions when we have search results
       setCompletions([]);
     } catch (error) {
-      console.error('Error searching locations:', error);
+      setErrorMsg('Search failed. Falling back to basic geocoding.');
       setSearchResults([]);
     } finally {
       setIsSearching(false);
@@ -486,6 +493,11 @@ export default function LocationSearchModal({
           />
           {isSearching && <Ionicons name="refresh" size={20} color="#666" style={styles.loadingIcon} />}
         </View>
+        {errorMsg && (
+          <Text style={{ color: '#ff3b30', marginHorizontal: 16, marginTop: -6 }}>
+            {errorMsg}
+          </Text>
+        )}
 
         {/* Recent locations hidden per request */}
 

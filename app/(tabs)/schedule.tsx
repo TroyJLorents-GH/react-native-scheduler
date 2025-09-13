@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import TodoAgendaScreen from '../../components/TodoAgendaScreen';
 import TodoCalendarDayView from '../../components/TodoCalendarDayView';
@@ -9,6 +9,7 @@ import { useTodoContext } from '../../context/TodoContext';
 export default function ScheduleTab() {
   const { todos } = useTodoContext();
 
+  // Only tasks with due dates; hide completed past-due items in vertical view component itself
   const todosWithDueDates = todos.filter(t => t.dueDate);
 
   const [viewMode, setViewMode] = useState<'vertical' | 'calendar'>('vertical');

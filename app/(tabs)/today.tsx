@@ -58,7 +58,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useFocusContext } from '../../context/FocusContext';
@@ -331,6 +331,12 @@ export default function FocusTab() {
             )}
           </View>
           <View style={styles.controlsRow}>
+            {/* Left: Set Timer */}
+            <TouchableOpacity style={[styles.ctrlBtn, { backgroundColor: '#2e313a' }]} onPress={() => { setTimeInput(''); setEditingTime(true); setTimerSheetOpen(true); }}>
+              <Text style={[styles.ctrlTxt, { color: '#e7e7ea' }]}>Set Timer</Text>
+            </TouchableOpacity>
+
+            {/* Middle: Dynamic action(s) */}
             {phase === 'idle' && (
               <TouchableOpacity style={[styles.ctrlBtn, { backgroundColor: titleColor }]} onPress={() => { start(); startFocusSession({ title, workMinutes: Math.max(1, Math.floor(workLenSec/60)) }); }}>
                 <Text style={styles.ctrlTxt}>Start to Focus</Text>
@@ -351,19 +357,30 @@ export default function FocusTab() {
             {phase === 'break' && (
               <TouchableOpacity style={[styles.ctrlBtn, { backgroundColor: '#67c99a' }]} onPress={() => setPhase('work')}><Text style={styles.ctrlTxt}>Start Next</Text></TouchableOpacity>
             )}
-            <TouchableOpacity style={[styles.ctrlBtn, { backgroundColor: '#2e313a' }]} onPress={() => { setTimeInput(''); setEditingTime(true); setTimerSheetOpen(true); }}>
-              <Text style={[styles.ctrlTxt, { color: '#e7e7ea' }]}>Set Timer</Text>
-            </TouchableOpacity>
+
+            {/* Right: Subtasks */}
             <TouchableOpacity style={[styles.ctrlBtn, { backgroundColor: '#2e313a' }]} onPress={() => setSubtasksSheetOpen(true)}>
               <Text style={[styles.ctrlTxt, { color: '#e7e7ea' }]}>Subtasks</Text>
             </TouchableOpacity>
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12, marginTop: 12 }}>
             {Array.from({ length: totalSessions }).map((_, i) => {
-              const completed = totalSessions - sessionsLeft > i;
-              const active = totalSessions - sessionsLeft === i && phase !== 'idle';
+              const progressIndex = Math.max(0, totalSessions - sessionsLeft); // 0-based current session index
+              const isActive = (phase === 'work' || phase === 'break' || phase === 'paused') && progressIndex === i;
+              const isCompleted = progressIndex > i;
+              const baseColor = titleColor;
+              const opacity = isCompleted ? 1 : isActive ? 1 : 0.3; // pending sessions are dimmed
               return (
-                <View key={i} style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: completed ? titleColor : active ? '#e7e7ea' : '#3a3f4b', opacity: active ? 0.95 : 1 }} />
+                <View
+                  key={i}
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
+                    backgroundColor: baseColor,
+                    opacity,
+                  }}
+                />
               );
             })}
           </View>

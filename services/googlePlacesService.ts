@@ -35,6 +35,19 @@ export interface GooglePlacesSearchResult {
 class GooglePlacesService {
   private apiKey = API_CONFIG.GOOGLE_PLACES_API_KEY;
   private baseUrl = 'https://maps.googleapis.com/maps/api/place';
+  private sessionToken: string | null = null;
+
+  // Generates a new session token for an autocomplete session
+  newSessionToken() {
+    // Per Google docs, any opaque string works. Use a simple UUID-ish token.
+    this.sessionToken = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    return this.sessionToken;
+  }
+
+  // Clears current session token (e.g., after selecting a place or closing modal)
+  clearSessionToken() {
+    this.sessionToken = null;
+  }
 
   // Search for places with autocomplete
   async searchAutocomplete(query: string, latitude?: number, longitude?: number): Promise<GooglePlacesAutocompleteResult[]> {
@@ -44,6 +57,9 @@ class GooglePlacesService {
     }
     try {
       let url = `${this.baseUrl}/autocomplete/json?input=${encodeURIComponent(query)}&key=${this.apiKey}&types=establishment`;
+      if (this.sessionToken) {
+        url += `&sessiontoken=${this.sessionToken}`;
+      }
       
       // Add location bias if coordinates provided
       if (latitude && longitude) {
@@ -96,12 +112,17 @@ class GooglePlacesService {
       return null;
     }
     try {
-      const url = `${this.baseUrl}/details/json?place_id=${placeId}&fields=place_id,name,formatted_address,geometry,types,rating,user_ratings_total,vicinity&key=${this.apiKey}`;
+      let url = `${this.baseUrl}/details/json?place_id=${placeId}&fields=place_id,name,formatted_address,geometry,types,rating,user_ratings_total,vicinity&key=${this.apiKey}`;
+      if (this.sessionToken) {
+        url += `&sessiontoken=${this.sessionToken}`;
+      }
       
       const response = await fetch(url);
       const data = await response.json();
       
       if (data.status === 'OK') {
+        // End of session per Google best practices
+        this.clearSessionToken();
         return data.result;
       } else {
         console.error('Google Places Details error:', data.status);
