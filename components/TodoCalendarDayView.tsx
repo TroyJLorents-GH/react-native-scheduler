@@ -22,15 +22,16 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
 
   const dayTodos = useMemo(() => {
     const selected = moment(date);
-    const isToday = selected.isSame(moment(), 'day');
+    const isPastDay = selected.isBefore(moment().startOf('day'), 'day');
     const filtered = [...todos]
       .filter(t => {
         if (!t.dueDate) return false;
         const due = moment(t.dueDate);
-        if (due.isSame(selected, 'day')) return true;
-        // Roll over: when viewing today, include all incomplete tasks from past days
-        if (isToday && !t.done && due.isBefore(selected, 'day')) return true;
-        return false;
+        // Only show tasks whose due date is the selected date; no rollover
+        if (!due.isSame(selected, 'day')) return false;
+        // Hide completed items when viewing past days
+        if (isPastDay && t.done) return false;
+        return true;
       })
       .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
     return filtered;

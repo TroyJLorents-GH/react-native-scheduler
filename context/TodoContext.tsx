@@ -16,6 +16,7 @@ export type Todo = {
   listId: string; 
   done: boolean;
   createdAt: Date;
+  completedAt?: Date;
   priority?: 'low' | 'medium' | 'high';
   dueDate?: Date;
   dueTime?: Date;
@@ -69,6 +70,7 @@ export const TodoProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return {
       ...raw,
       createdAt: toDate(raw.createdAt) ?? new Date(),
+      completedAt: toDate(raw.completedAt),
       dueDate: toDate(raw.dueDate),
       dueTime: toDate(raw.dueTime),
       durationMinutes: typeof raw.durationMinutes === 'number' ? raw.durationMinutes : undefined,
@@ -117,7 +119,11 @@ export const TodoProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   
   const toggleTodo = (id: string) =>
-    setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+    setTodos(prev => prev.map(t => {
+      if (t.id !== id) return t;
+      const nowDone = !t.done;
+      return { ...t, done: nowDone, completedAt: nowDone ? new Date() : undefined };
+    }));
   
   const deleteTodo = (id: string) =>
     setTodos(prev => prev.filter(t => t.id !== id));

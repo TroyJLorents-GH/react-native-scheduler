@@ -36,7 +36,7 @@
 
 
 import { Slot } from 'expo-router';
-import React from 'react';
+import { StatusBar } from 'expo-status-bar';
 import 'react-native-gesture-handler';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import GlobalFocusBanner from '../components/GlobalFocusBanner';
@@ -55,6 +55,7 @@ export default function RootLayout() {
             <FocusProvider>
               <TempDetailsProvider>
                 <GlobalFocusBanner />
+                <StatusBar style="dark" translucent backgroundColor="transparent" />
                 <Slot />
               </TempDetailsProvider>
             </FocusProvider>

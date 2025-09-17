@@ -3,19 +3,31 @@ import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useMemo } from 'react';
-import { FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ListItems() {
   const { listId } = useLocalSearchParams<{ listId: string }>();
   const { todos, toggleTodo, toggleSubTask } = useTodoContext();
   const { lists } = useListContext();
   const [showCompleted, setShowCompleted] = React.useState(false);
+  const [completedSheetOpen, setCompletedSheetOpen] = React.useState(false);
 
   const list = lists.find(l => l.id === listId);
   const listTodos = useMemo(() => {
     const filtered = todos.filter(t => t.listId === listId);
     return showCompleted ? filtered : filtered.filter(t => !t.done);
   }, [todos, listId, showCompleted]);
+
+  const completedForList = useMemo(() => {
+    return todos
+      .filter(t => t.listId === listId && t.done)
+      .sort((a: any, b: any) => {
+        const at = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+        const bt = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+        return bt - at;
+      });
+  }, [todos, listId]);
 
   const renderTodo = ({ item }: { item: any }) => (
     <View style={styles.todoRow}>
@@ -100,23 +112,32 @@ export default function ListItems() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#374151" />
         </TouchableOpacity>
-        <View style={styles.headerInfo}>
-          <View style={[styles.listIcon, { backgroundColor: list?.color || '#007AFF' }]}>
-            {list?.icon && (
-              <Ionicons name={list.icon as any} size={20} color="#fff" />
-            )}
+        {String(listId) === 'focus' ? (
+          <>
+            <Text style={styles.centerTitle}>Focus</Text>
+            <View style={styles.placeholder} />
+          </>
+        ) : (
+          <View style={styles.headerInfo}>
+            <View style={[styles.listIcon, { backgroundColor: list?.color || '#007AFF' }]}>
+              {list?.icon && (
+                <Ionicons name={list.icon as any} size={20} color="#fff" />
+              )}
+            </View>
+            <Text style={styles.headerTitle}>{list?.name || 'List'}</Text>
+            <Text style={styles.itemCount}>{listTodos.length} items</Text>
           </View>
-          <Text style={styles.headerTitle}>{list?.name || 'List'}</Text>
-          <Text style={styles.itemCount}>{listTodos.length} items</Text>
-        </View>
-        <TouchableOpacity 
-          style={styles.toggleButton}
-          onPress={() => setShowCompleted(!showCompleted)}
-        >
-          <Text style={styles.toggleText}>
-            {showCompleted ? 'Hide Completed' : 'Show Completed'}
-          </Text>
-        </TouchableOpacity>
+        )}
+        {String(listId) !== 'focus' && (
+          <TouchableOpacity 
+            style={styles.toggleButton}
+            onPress={() => setShowCompleted(!showCompleted)}
+          >
+            <Text style={styles.toggleText}>
+              {showCompleted ? 'Hide Completed' : 'Show Completed'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* List Items */}
@@ -129,6 +150,44 @@ export default function ListItems() {
         showsVerticalScrollIndicator={false}
       />
 
+      {/* Centered "View Completed" button (match SmartListScreen style) */}
+      {listId === 'focus' && completedForList.length > 0 && (
+        <TouchableOpacity style={styles.viewCompletedBtn} onPress={() => setCompletedSheetOpen(true)}>
+          <Text style={styles.viewCompletedText}>View Completed ({completedForList.length})</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Completed bottom sheet for Focus sessions */}
+      <Modal transparent visible={completedSheetOpen} animationType="slide" onRequestClose={() => setCompletedSheetOpen(false)}>
+        <View style={styles.sheetOverlay}>
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => setCompletedSheetOpen(false)} />
+          <View style={styles.sheetContainer}>
+            <Text style={styles.sheetTitle}>Completed Focus Sessions</Text>
+            <FlatList
+              data={completedForList}
+              keyExtractor={(item:any) => item.id}
+              renderItem={({ item }: any) => (
+                <View style={styles.completedRow}>
+                  <Ionicons name="checkmark-circle" size={18} color="#67c99a" style={{ marginRight: 8 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.completedTitle} numberOfLines={1}>{item.text}</Text>
+                    <Text style={styles.completedMeta}>
+                      {item.completedAt ? new Date(item.completedAt).toLocaleString() : ''}
+                      {item.pomodoro?.workTime ? ` • ${item.pomodoro.workTime} min` : ''}
+                    </Text>
+                  </View>
+                </View>
+              )}
+              style={{ maxHeight: 340 }}
+              showsVerticalScrollIndicator={false}
+            />
+            <TouchableOpacity style={styles.sheetCloseBtn} onPress={() => setCompletedSheetOpen(false)}>
+              <Text style={{ color: '#fff', fontWeight: '700' }}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* FAB - New Reminder */}
       <TouchableOpacity 
         style={styles.fab}
@@ -140,7 +199,7 @@ export default function ListItems() {
           }
         }}
       >
-        <Ionicons name={listId === 'focus' ? 'timer-outline' : 'add'} size={24} color="#fff" />
+        <Ionicons name={listId === 'focus' ? 'timer-outline' : 'add'} size={16} color="#fff" />
         <Text style={styles.fabText}>{listId === 'focus' ? 'Add Focus Time' : 'New Reminder'}</Text>
       </TouchableOpacity>
     </SafeAreaView>
@@ -155,15 +214,16 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 12,
-    paddingTop: 60,
+    paddingTop: 18,
     paddingBottom: 16,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
   },
   backButton: {
-    marginRight: 16,
+    padding: 8
   },
   headerInfo: {
     flex: 1,
@@ -272,12 +332,12 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 24,
-    right: 24,
+    bottom: 68,
+    right: 20,
     backgroundColor: '#4f46e5',
-    borderRadius: 28,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    borderRadius: 24,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
@@ -288,8 +348,31 @@ const styles = StyleSheet.create({
   },
   fabText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    marginLeft: 8,
+    marginLeft: 6,
   },
+  centerTitle: { 
+    fontSize: 20,
+    fontWeight: '700', 
+    color: '#111827', 
+    flex: 1, 
+    textAlign: 'center'
+     },
+  viewCompletedBtn: {
+    alignSelf: 'center',
+    marginTop: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#f1f5ff',
+    borderRadius: 16,
+  },
+  viewCompletedText: { color: '#3f51d1', fontWeight: '700' },
+  sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheetContainer: { backgroundColor: '#fff', padding: 16, borderTopLeftRadius: 16, borderTopRightRadius: 16 },
+  sheetTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8, color: '#111827' },
+  completedRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  completedTitle: { color: '#111827', fontSize: 14, fontWeight: '600' },
+  completedMeta: { color: '#6b7280', fontSize: 12 },
+  sheetCloseBtn: { alignSelf: 'center', marginTop: 10, backgroundColor: '#3f51d1', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 16 },
 });

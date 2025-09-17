@@ -1,14 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useEffect, useState } from 'react';
-import { SafeAreaView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-
+import { useEffect, useState } from 'react';
+import { StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 const SETTINGS_KEY = 'scheduler.settings.v1';
 
 type Settings = {
   rolloverEnabled: boolean;
   autoPurgeCompletedDays: number | null;
   username?: string;
+  fullName?: string;
   password?: string;
+  email?: string | null;
   authProvider?: 'google' | 'apple' | 'local' | null;
   subscription?: string | null;
 };
@@ -20,6 +22,9 @@ export default function SettingsScreen() {
     authProvider: null,
     subscription: null,
   });
+  const [accountOpen, setAccountOpen] = useState(true);
+  const [taskOpen, setTaskOpen] = useState(true);
+  const [saved, setSaved] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -38,29 +43,64 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.container}>
       <Text style={styles.header}>Settings</Text>
 
-      <View style={styles.row}> 
-        <Text style={styles.label}>Rollover incomplete previous tasks to today</Text>
-        <Switch value={settings.rolloverEnabled} onValueChange={(v) => setSettings(s => ({ ...s, rolloverEnabled: v }))} />
+      {/* Account Info */}
+      <View style={styles.card}>
+        <TouchableOpacity onPress={() => setAccountOpen(!accountOpen)} style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Account Info</Text>
+          <Text style={styles.cardChevron}>{accountOpen ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
+        {accountOpen && (
+          <View style={styles.cardBody}>
+            <Text style={styles.label}>Username</Text>
+            <TextInput style={styles.input} placeholder="Username" placeholderTextColor="#8e8e93" autoCapitalize="none" value={settings.username} onChangeText={(t)=>setSettings(s=>({...s, username:t}))} />
+            <Text style={styles.label}>Full Name</Text>
+            <TextInput style={styles.input} placeholder="Full Name" placeholderTextColor="#8e8e93" value={settings.fullName} onChangeText={(t)=>setSettings(s=>({...s, fullName:t}))} />
+            <Text style={styles.label}>Email</Text>
+            <TextInput style={styles.input} placeholder="Email" placeholderTextColor="#8e8e93" keyboardType="email-address" autoCapitalize="none" value={(settings as any).email} onChangeText={(t)=>setSettings(s=>({...s, email:t as any}))} />
+            <Text style={styles.label}>Password</Text>
+            <TextInput style={styles.input} placeholder="Password" placeholderTextColor="#8e8e93" secureTextEntry value={settings.password} onChangeText={(t)=>setSettings(s=>({...s, password:t}))} />
+            <TouchableOpacity
+              onPress={async () => {
+                try {
+                  await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+                  if (settings.username) await AsyncStorage.setItem('account.username', settings.username);
+                  setSaved('Saved');
+                  setTimeout(()=>setSaved(null), 1200);
+                } catch {}
+              }}
+              style={styles.saveBtn}
+            >
+              <Text style={styles.saveTxt}>Save</Text>
+            </TouchableOpacity>
+            {saved && <Text style={[styles.hint, { textAlign: 'center', marginTop: 6 }]}>{saved}</Text>}
+          </View>
+        )}
       </View>
 
-      <View style={styles.section}> 
-        <Text style={styles.label}>Permanently delete completed tasks after (days)</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. 30"
-          keyboardType="number-pad"
-          value={settings.autoPurgeCompletedDays?.toString() ?? ''}
-          onChangeText={(t) => setSettings(s => ({ ...s, autoPurgeCompletedDays: t ? Number(t) : null }))}
-        />
-        <Text style={styles.hint}>This will clear the Completed list automatically after the set number of days.</Text>
-      </View>
-
-      <View style={styles.section}> 
-        <Text style={styles.sectionHeader}>Account (placeholder)</Text>
-        <Text style={styles.hint}>Stored locally until sign-in is implemented.</Text>
-        <TextInput style={styles.input} placeholder="Username" autoCapitalize="none" value={settings.username} onChangeText={(t)=>setSettings(s=>({...s, username:t}))} />
-        <TextInput style={styles.input} placeholder="Password" secureTextEntry value={settings.password} onChangeText={(t)=>setSettings(s=>({...s, password:t}))} />
-        <Text style={styles.hint}>Subscription: {settings.subscription ?? 'Free (mock)'}</Text>
+      {/* Task Settings */}
+      <View style={styles.card}>
+        <TouchableOpacity onPress={() => setTaskOpen(!taskOpen)} style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Task Settings</Text>
+          <Text style={styles.cardChevron}>{taskOpen ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
+        {taskOpen && (
+          <View style={styles.cardBody}>
+            <View style={styles.row}> 
+              <Text style={styles.label}>Rollover incomplete previous tasks to today</Text>
+              <Switch value={settings.rolloverEnabled} onValueChange={(v) => setSettings(s => ({ ...s, rolloverEnabled: v }))} />
+            </View>
+            <Text style={styles.label}>The completed list automatically clears after the set number of days:</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. 30"
+              placeholderTextColor="#8e8e93"
+              keyboardType="number-pad"
+              value={settings.autoPurgeCompletedDays?.toString() ?? ''}
+              onChangeText={(t) => setSettings(s => ({ ...s, autoPurgeCompletedDays: t ? Number(t) : null }))}
+            />
+            <Text style={styles.hint}>Tap outside to auto-save.</Text>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -71,8 +111,13 @@ const styles = StyleSheet.create({
   header: { color: '#fff', fontSize: 20, fontWeight: '700', marginBottom: 12 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: '#38383a' },
   label: { color: '#fff', fontSize: 16, flex: 1, marginRight: 12 },
-  section: { paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: '#38383a' },
-  sectionHeader: { color: '#fff', fontSize: 16, fontWeight: '600', marginBottom: 6 },
   input: { backgroundColor: '#1c1c1e', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: '#fff', marginTop: 8 },
   hint: { color: '#8e8e93', fontSize: 12, marginTop: 6 },
+  card: { backgroundColor: '#121317', borderRadius: 16, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#1f1f23' },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  cardChevron: { color: '#8e8e93' },
+  cardBody: { marginTop: 10 },
+  saveBtn: { marginTop: 18, backgroundColor: '#67c99a', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  saveTxt: { color: '#0b0b0c', fontWeight: '700' },
 });

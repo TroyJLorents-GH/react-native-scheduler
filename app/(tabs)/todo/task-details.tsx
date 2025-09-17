@@ -3,8 +3,10 @@ import { useFocusContext } from '@/context/FocusContext';
 import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useMemo, useState } from 'react';
-import { Image, Linking, Modal, SafeAreaView, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Image, Linking, Modal, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 
 export default function TaskDetailsScreen() {
   const { id, autostart, from } = useLocalSearchParams<{ id: string; autostart?: string; from?: string }>();

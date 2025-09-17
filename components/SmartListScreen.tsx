@@ -6,7 +6,7 @@ import { FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } 
 import { SwipeListView } from 'react-native-swipe-list-view';
 import { useTodoContext } from '../context/TodoContext';
 
-export default function SmartListScreen({ filter, title }: { filter: (todo: any) => boolean; title: string }) {
+export default function SmartListScreen({ filter, title, completedPredicate }: { filter: (todo: any) => boolean; title: string; completedPredicate?: (todo:any)=>boolean }) {
   const pathname = usePathname();
   const { todos, toggleTodo, deleteTodo, addSubTask, toggleSubTask } = useTodoContext();
   const [expandedIds, setExpandedIds] = React.useState<string[]>([]);
@@ -55,18 +55,37 @@ export default function SmartListScreen({ filter, title }: { filter: (todo: any)
 
   // Build a completed list matching current view scope (heuristic by pathname)
   const completedForView = React.useMemo(() => {
+    if (completedPredicate) {
+      return todos.filter(completedPredicate).sort((a,b)=>{
+        const at=a.completedAt?new Date(a.completedAt).getTime():0; const bt=b.completedAt?new Date(b.completedAt).getTime():0; return bt-at;
+      });
+    }
     const todayKey = new Date().toDateString();
     if (pathname?.endsWith('/priority')) {
-      return todos.filter(t => t.priority === 'high' && t.done);
+      return todos.filter(t => t.priority === 'high' && t.done).sort((a,b)=>{
+        const at=a.completedAt?new Date(a.completedAt).getTime():0; const bt=b.completedAt?new Date(b.completedAt).getTime():0; return bt-at;
+      });
+    }
+    if (pathname?.endsWith('/focus') || (pathname?.includes('/todo/list-items') && pathname?.includes('listId=focus'))) {
+      // Completed focus sessions only
+      return todos.filter(t => t.listId==='focus' && t.done).sort((a,b)=>{
+        const at=a.completedAt?new Date(a.completedAt).getTime():0; const bt=b.completedAt?new Date(b.completedAt).getTime():0; return bt-at;
+      });
     }
     if (pathname?.endsWith('/all')) {
       const start = new Date(); start.setHours(0,0,0,0);
-      return todos.filter(t => t.done && !!t.dueDate && new Date(t.dueDate) >= start);
+      return todos.filter(t => t.done && !!t.dueDate && new Date(t.dueDate) >= start).sort((a,b)=>{
+        const at=a.completedAt?new Date(a.completedAt).getTime():0; const bt=b.completedAt?new Date(b.completedAt).getTime():0; return bt-at;
+      });
     }
     if (pathname?.endsWith('/scheduled')) {
-      return todos.filter(t => t.done && !!t.dueDate && new Date(t.dueDate).toDateString() === todayKey);
+      return todos.filter(t => t.done && !!t.dueDate && new Date(t.dueDate).toDateString() === todayKey).sort((a,b)=>{
+        const at=a.completedAt?new Date(a.completedAt).getTime():0; const bt=b.completedAt?new Date(b.completedAt).getTime():0; return bt-at;
+      });
     }
-    return todos.filter(t => t.done);
+    return todos.filter(t => t.done).sort((a,b)=>{
+      const at=a.completedAt?new Date(a.completedAt).getTime():0; const bt=b.completedAt?new Date(b.completedAt).getTime():0; return bt-at;
+    });
   }, [todos, pathname]);
 
   return (

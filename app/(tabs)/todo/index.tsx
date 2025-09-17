@@ -5,16 +5,16 @@ import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
 import moment from 'moment';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { SwipeListView } from 'react-native-swipe-list-view';
 
 export default function TodoDashboard() {
@@ -39,17 +39,20 @@ export default function TodoDashboard() {
     }).length;
     const priority = todos.filter(t => t.priority === 'high' && !t.done).length; // Only active high priority
     const listCountsMap: Record<string, number> = {};
+    // Focus-only (special list)
+    const focus = todos.filter(t => t.listId === 'focus' && !t.done).length;
     lists.forEach(l => {
       listCountsMap[l.id] = todos.filter(t => t.listId === l.id && !t.done).length;
     });
     return {
-      all, scheduled, completed, todaysTasks, priority,
+      all, scheduled, completed, todaysTasks, priority, focus,
       lists: lists.length,
       perList: listCountsMap,
     };
   }, [todos, lists]);
 
   const [listModalOpen, setListModalOpen] = useState(false);
+  const [completedSheetOpen, setCompletedSheetOpen] = useState(false);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f8ff' }}>
@@ -66,8 +69,11 @@ export default function TodoDashboard() {
           <DashCard label="Today's Tasks"  count={counts.scheduled}  href="/todo/scheduled" />
           <DashCard label="Completed"  count={counts.completed}  href="/todo/completed" />
           <DashCard label="Priority"   count={counts.priority}   href="/todo/priority" />
+          <DashCard label="Focus Sessions" count={counts.focus} href={{ pathname: '/todo/list-items', params: { listId: 'focus' } }} />
           <DashCard label="Lists"      count={counts.lists}      href="/todo/lists" />
         </View>
+
+        {/* (Removed: View Completed button for dashboard) */}
 
         {/* My Lists header */}
         <View style={s.sectionHeader}>
@@ -145,6 +151,9 @@ export default function TodoDashboard() {
         visible={listModalOpen}
         onClose={() => setListModalOpen(false)}
       />
+
+      {/* Completed Tasks Bottom Sheet (removed for index dashboard per request) */}
+      {/* (sheet removed) */}
     </SafeAreaView>
   );
 }
@@ -172,6 +181,8 @@ const s = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '800', color: '#3f51d1', marginBottom: 12 },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 16 },
+  completedBtn: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#eef2ff', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, marginBottom: 12 },
+  completedBtnText: { color: '#3f51d1', fontWeight: '700' },
   card: {
     width: '48%',
     backgroundColor: '#fff',
@@ -256,4 +267,13 @@ const s = StyleSheet.create({
     borderRadius: 30,
   },
   fabText: { color: 'white', fontWeight: '800' },
+
+  // Bottom sheet styles
+  sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  sheetContainer: { backgroundColor: '#ffffff', padding: 16, borderTopLeftRadius: 16, borderTopRightRadius: 16 },
+  sheetHeader: { fontSize: 18, fontWeight: '800', color: '#111827', marginBottom: 10 },
+  completedRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e5e7eb' },
+  completedTitle: { color: '#111827', fontWeight: '700' },
+  completedMeta: { color: '#6b7280', fontSize: 12, marginTop: 2 },
+  sheetCloseBtn: { alignSelf: 'flex-end', backgroundColor: '#e5e7eb', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, marginTop: 8 },
 });

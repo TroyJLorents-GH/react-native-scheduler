@@ -1,12 +1,12 @@
 import SmartListScreen from '@/components/SmartListScreen';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ScheduledTodosScreen() {
   return (
-    <View style={s.container}>
+    <SafeAreaView style={s.container}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.replace('/todo' as any)} style={s.backButton}>
           <Ionicons name="arrow-back" size={24} color="#374151" />
@@ -19,7 +19,7 @@ export default function ScheduledTodosScreen() {
         title=""
         filter={todo => !!todo.dueDate && !todo.done && new Date(todo.dueDate).toDateString() === new Date().toDateString()}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -33,7 +33,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 60,
+    paddingTop: 18,
     paddingBottom: 16,
     backgroundColor: '#fff',
     borderBottomWidth: 1,

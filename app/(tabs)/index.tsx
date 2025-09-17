@@ -1,47 +1,57 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import moment from 'moment';
-import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import DraggableFlatList from 'react-native-draggable-flatlist';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useListContext } from '../../context/ListContext';
 import { Todo, useTodoContext } from '../../context/TodoContext';
-import { getCurrentWeather, WeatherData } from '../../services/weatherService';
 
 export default function HomeDashboard() {
   const { todos, toggleTodo } = useTodoContext();
   const { lists } = useListContext();
   // const { user, isAuthenticated, isLoading: authLoading, signIn, signOut } = useGoogleAuth();
-  const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [loading, setLoading] = useState(true);
   
+  // Greeting pulls username from Settings
+  const [username, setUsername] = useState('');
+  const loadUsername = useCallback(async () => {
+    try { const u = await AsyncStorage.getItem('account.username'); setUsername(u || ''); } catch {}
+  }, []);
+  useEffect(() => { loadUsername(); }, [loadUsername]);
+  useFocusEffect(useCallback(() => { loadUsername(); }, [loadUsername]));
+
   const today = moment();
   const startOfToday = today.clone().startOf('day');
-  // Today's tasks with rollover from past days (incomplete)
+  // Today's tasks (today only)
   const todaysTodos = todos.filter(todo => {
     if (todo.done) return false;
     if (!todo.dueDate) return false;
     const due = moment(todo.dueDate);
-    // Due today OR incomplete and past due (roll over)
-    const isToday = due.isSame(today, 'day') || due.isBefore(startOfToday);
-    
-    
-    return isToday;
+    return due.isSame(today, 'day');
   });
-  // Daily Goals: match the pool shown in Today's Tasks (due today OR past-due rollovers)
+  const tomorrow = today.clone().add(1, 'day');
+  const tomorrowTodos = todos.filter(t => !t.done && t.dueDate && moment(t.dueDate).isSame(tomorrow, 'day'));
+  const overdueTodos = todos.filter(t => !t.done && t.dueDate && moment(t.dueDate).isBefore(startOfToday, 'day'));
+  const upcomingTodos = todos.filter(t => !t.done && t.dueDate && moment(t.dueDate).isAfter(tomorrow, 'day'));
+  // Daily Goals: only tasks due today (no overdue rollovers)
   const todaysPoolAll = todos.filter(todo => {
     if (!todo.dueDate) return false;
     const due = moment(todo.dueDate);
-    return due.isSame(today, 'day') || due.isBefore(startOfToday);
+    return due.isSame(today, 'day');
   });
   const completedCount = todaysPoolAll.filter(t => t.done).length;
   const totalCount = todaysPoolAll.length;
   const completionPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
-  useEffect(() => {
-    loadWeather();
-  }, []);
+  // state for collapsible sections
+  const [showTomorrow, setShowTomorrow] = useState(false);
+  const [showUpcoming, setShowUpcoming] = useState(false);
+  const [showOverdue, setShowOverdue] = useState(false);
+
+  // Reordering only; no cross-day move from Home
 
   // --- Reorder state for today's list ---
   const [reorderMode, setReorderMode] = useState(false);
@@ -97,68 +107,33 @@ export default function HomeDashboard() {
     return order.map(id => idToTodo.get(id)!).filter(Boolean);
   }, [todaysTodos, manualOrderIds]);
 
-  const loadWeather = async () => {
-    try {
-      setLoading(true);
-      const weatherData = await getCurrentWeather(); // No parameters needed
-      setWeather(weatherData);
-    } catch (error) {
-      console.error('Error loading weather:', error);
-    } finally {
-      setLoading(false);
+  // Duration helpers
+  const getDurationMin = (t: Todo) => {
+    if (t.pomodoro?.enabled) {
+      const w = t.pomodoro.workTime || 25;
+      const unit = t.pomodoro.workUnit || 'min';
+      return Math.max(15, unit === 'hour' ? w * 60 : w);
     }
+    return Math.max(15, t.durationMinutes || 60);
   };
-
-
+  const fmtHours = (mins: number) => `${(mins / 60).toFixed(1)}h`;
+  const todaySummary = fmtHours(todaysTodos.reduce((sum, t) => sum + getDurationMin(t), 0));
+  const tomorrowSummary = fmtHours(tomorrowTodos.reduce((sum, t) => sum + getDurationMin(t), 0));
+  const upcomingSummary = fmtHours(upcomingTodos.reduce((sum, t) => sum + getDurationMin(t), 0));
+  const overdueSummary = fmtHours(overdueTodos.reduce((sum, t) => sum + getDurationMin(t), 0));
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f8ff' }}>
     <ScrollView contentContainerStyle={[styles.container, { paddingTop: 12 }]}> 
 
-
-      {/* Weather Card */}
-      <View style={styles.card}>
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#ffb64f" />
-            <Text style={styles.loadingText}>Loading weather...</Text>
-          </View>
-        ) : weather ? (
-          <>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <MaterialCommunityIcons 
-                name={weather.icon as any} 
-                size={42} 
-                color="#ffb64f" 
-                style={{ marginRight: 10 }} 
-              />
-            <View>
-              <Text style={styles.weatherCity}>{weather.city}</Text>
-              <Text style={styles.weatherTemp}>{weather.temp}</Text>
-            </View>
-          </View>
-        <Text style={styles.weatherDesc}>{weather.desc}</Text>
-            
-            {/* Additional weather details */}
-            <View style={styles.weatherDetails}>
-              <View style={styles.weatherDetail}>
-                <Text style={styles.weatherDetailLabel}>Feels like</Text>
-                <Text style={styles.weatherDetailValue}>{weather.feelsLike}</Text>
-              </View>
-              <View style={styles.weatherDetail}>
-                <Text style={styles.weatherDetailLabel}>Humidity</Text>
-                <Text style={styles.weatherDetailValue}>{weather.humidity}%</Text>
-              </View>
-              <View style={styles.weatherDetail}>
-                <Text style={styles.weatherDetailLabel}>Wind</Text>
-                <Text style={styles.weatherDetailValue}>{weather.windSpeed} mph</Text>
-              </View>
-            </View>
-          </>
-        ) : (
-          <Text style={styles.errorText}>Unable to load weather data</Text>
-        )}
+      {/* Greeting */}
+      <View style={{ marginBottom: 16 }}>
+        <Text style={{ color: '#323447', fontSize: 28, fontWeight: '800' }}>
+          Hello{username ? `, ${username}` : ''}
+        </Text>
       </View>
+
+      {/* Account Info moved to Settings */}
 
       {/* Daily Goals */}
       <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={() => router.push('/todays-tasks')}>
@@ -181,14 +156,11 @@ export default function HomeDashboard() {
       {/* Today's Tasks */}
       <View style={styles.card}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={styles.sectionTitle}>
-          <MaterialCommunityIcons name="check-circle-outline" size={21} color="#67c99a" />  Today's Tasks
-        </Text>
-          {displayTodos.length > 0 && (
-            <TouchableOpacity onPress={() => setReorderMode(!reorderMode)}>
-              <Text style={{ color: '#556de8', fontWeight: '600' }}>{reorderMode ? 'Done' : 'Reorder'}</Text>
-            </TouchableOpacity>
-          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <MaterialCommunityIcons name="check-circle-outline" size={21} color="#67c99a" />
+            <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>Today's Tasks</Text>
+          </View>
+          <Text style={styles.metricsText}>{todaySummary}  {todaysTodos.length}</Text>
         </View>
         {todaysTodos.length === 0 ? (
           <Text style={styles.emptyText}>No to-dos for today.</Text>
@@ -255,6 +227,66 @@ export default function HomeDashboard() {
             <Text style={styles.addBtnText}>Add Focus Time</Text>
           </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Tomorrow (collapsible) */}
+      <View style={styles.card}>
+        <TouchableOpacity onPress={() => setShowTomorrow(!showTomorrow)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <MaterialCommunityIcons name="weather-sunset" size={21} color="#f59e0b" />
+            <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>Tomorrow</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={styles.metricsText}>{tomorrowSummary}  {tomorrowTodos.length}</Text>
+            <Ionicons name={showTomorrow ? 'chevron-up' : 'chevron-down'} size={20} color="#7a7c96" style={{ marginLeft: 8 }} />
+          </View>
+        </TouchableOpacity>
+        {showTomorrow && (
+          tomorrowTodos.length === 0 ? <Text style={styles.emptyText}>No tasks for tomorrow.</Text> :
+          tomorrowTodos.map(item => (
+            <HomeRow key={item.id} item={item} listsName={lists.find(l=>l.id===item.listId)?.name} onToggle={() => toggleTodo(item.id)} />
+          ))
+        )}
+      </View>
+
+      {/* Upcoming (collapsible) */}
+      <View style={styles.card}>
+        <TouchableOpacity onPress={() => setShowUpcoming(!showUpcoming)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <MaterialCommunityIcons name="calendar-outline" size={21} color="#3b82f6" />
+            <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>Upcoming</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={styles.metricsText}>{upcomingSummary}  {upcomingTodos.length}</Text>
+            <Ionicons name={showUpcoming ? 'chevron-up' : 'chevron-down'} size={20} color="#7a7c96" style={{ marginLeft: 8 }} />
+          </View>
+        </TouchableOpacity>
+        {showUpcoming && (
+          upcomingTodos.length === 0 ? <Text style={styles.emptyText}>No upcoming tasks.</Text> :
+          upcomingTodos.map(item => (
+            <HomeRow key={item.id} item={item} listsName={lists.find(l=>l.id===item.listId)?.name} onToggle={() => toggleTodo(item.id)} />
+          ))
+        )}
+      </View>
+
+      {/* Overdue (collapsible) */}
+      <View style={styles.card}>
+        <TouchableOpacity onPress={() => setShowOverdue(!showOverdue)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={21} color="#ef4444" />
+            <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>Overdue</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={styles.metricsText}>{overdueSummary}  {overdueTodos.length}</Text>
+            <Ionicons name={showOverdue ? 'chevron-up' : 'chevron-down'} size={20} color="#7a7c96" style={{ marginLeft: 8 }} />
+          </View>
+        </TouchableOpacity>
+        {showOverdue && (
+          overdueTodos.length === 0 ? <Text style={styles.emptyText}>Nothing overdue. Nicely done!</Text> :
+          overdueTodos.map(item => (
+            <HomeRow key={item.id} item={item} listsName={lists.find(l=>l.id===item.listId)?.name} onToggle={() => toggleTodo(item.id)} />
+          ))
+        )}
       </View>
     </ScrollView>
     </SafeAreaView>
@@ -453,4 +485,34 @@ const styles = StyleSheet.create({
     marginLeft: 6, 
     fontSize: 14 
   },
+  inputLabel: { color: '#7a7c96', marginTop: 6, marginBottom: 4 },
+  input: { backgroundColor: '#f8f9fa', borderWidth: 1, borderColor: '#e9ecef', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: '#222' },
+  metricsText: { color: '#7a7c96', fontWeight: '600' },
 });
+
+function HomeRow({ item, listsName, onToggle }: { item: Todo; listsName?: string; onToggle: () => void }) {
+  return (
+    <TouchableOpacity 
+      style={{
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        marginVertical: 5,
+        paddingVertical: 8,
+        paddingHorizontal: 8,
+        borderRadius: 8,
+        backgroundColor: '#f8f9fa',
+      }}
+      activeOpacity={0.9}
+      onPress={() => router.push({ pathname: '/task-details', params: { id: item.id } })}
+    >
+      <TouchableOpacity onPress={onToggle} style={{ marginRight: 8, marginTop: 2 }}>
+        <Ionicons name={item.done ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={item.done ? '#67c99a' : '#bbb'} />
+      </TouchableOpacity>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 16, color: '#222', marginBottom: 2 }} numberOfLines={1}>{item.text}</Text>
+        <Text style={{ fontSize: 14, color: '#a4a4a4', fontStyle: 'italic' }} numberOfLines={1}>{listsName || 'Reminders'}</Text>
+      </View>
+      <Ionicons name={'play-circle'} size={26} color={'#67c99a'} style={{ marginLeft: 9 }} />
+    </TouchableOpacity>
+  );
+}

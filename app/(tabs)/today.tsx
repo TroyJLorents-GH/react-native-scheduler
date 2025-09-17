@@ -57,22 +57,32 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ImageBackground, Keyboard, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { useFocusContext } from '../../context/FocusContext';
 import { useTodoContext } from '../../context/TodoContext';
 
 const STATS_KEY_PREFIX = 'focus.stats.'; // focus.stats.YYYY-MM-DD
 const FOCUS_TITLE_COLOR_KEY = 'focus.title.color';
+const FOCUS_BG_URI_KEY = 'focus.bg.uri';
+
+type Subtask = {
+  id: string;
+  text: string;
+  done: boolean;
+};
 
 export default function FocusTab() {
   const { startFocusSession } = useFocusContext();
   const { focusTask, focusTaskId } = useLocalSearchParams();
   const { todos, updateTodo } = useTodoContext();
   const [title, setTitle] = useState('Reading');
-  const [subtasks, setSubtasks] = useState<string[]>([]);
+  const [titleDraft, setTitleDraft] = useState('');
+  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [input, setInput] = useState('');
   const [subtasksSheetOpen, setSubtasksSheetOpen] = useState(false);
   const [timerSheetOpen, setTimerSheetOpen] = useState(false);
@@ -80,6 +90,7 @@ export default function FocusTab() {
   const titleInputRef = useRef<TextInput>(null);
   const [titleColor, setTitleColor] = useState<string>('#5b47a8');
   const [colorSheetOpen, setColorSheetOpen] = useState(false);
+  const [bgUri, setBgUri] = useState<string | null>(null);
 
   // Timer state (pomodoro)
   const [phase, setPhase] = useState<'idle'|'work'|'break'|'paused'>('idle');
@@ -113,6 +124,8 @@ export default function FocusTab() {
       try {
         const c = await AsyncStorage.getItem(FOCUS_TITLE_COLOR_KEY);
         if (c) setTitleColor(c);
+        const savedBg = await AsyncStorage.getItem(FOCUS_BG_URI_KEY);
+        if (savedBg) setBgUri(savedBg);
       } catch {}
     })();
   }, []);
@@ -239,12 +252,36 @@ export default function FocusTab() {
 
   const addSubtask = () => {
     if (!input.trim()) return;
-    setSubtasks(prev => [...prev, input.trim()]);
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+    setSubtasks(prev => [...prev, { id, text: input.trim(), done: false }]);
     setInput('');
+  };
+
+  const toggleSubtask = (id: string) => {
+    setSubtasks(prev => prev.map(s => s.id === id ? { ...s, done: !s.done } : s));
+  };
+
+  const pickBackgroundImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') return;
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.9 });
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const uri = result.assets[0].uri;
+      setBgUri(uri);
+      try { await AsyncStorage.setItem(FOCUS_BG_URI_KEY, uri); } catch {}
+    }
+  };
+
+  const clearBackgroundImage = async () => {
+    setBgUri(null);
+    try { await AsyncStorage.removeItem(FOCUS_BG_URI_KEY); } catch {}
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      {bgUri ? (
+        <ImageBackground source={{ uri: bgUri }} style={StyleSheet.absoluteFillObject as any} imageStyle={styles.bgImage} />
+      ) : null}
       <TouchableOpacity onPress={() => router.back?.()} style={{ position: 'absolute', left: 16, top: 16, zIndex: 10, padding: 8 }}>
         <Ionicons name="arrow-back" size={22} color="#e7e7ea" />
       </TouchableOpacity>
@@ -258,10 +295,10 @@ export default function FocusTab() {
                 style={styles.titleEditInput}
                 placeholder="Task name"
                 placeholderTextColor="#e9dcff"
-                value={title}
-                onChangeText={setTitle}
+                value={titleDraft}
+                onChangeText={setTitleDraft}
                 returnKeyType="done"
-                onSubmitEditing={() => setEditingTitle(false)}
+                onSubmitEditing={() => { if (titleDraft.trim().length) setTitle(titleDraft.trim()); setEditingTitle(false); }}
               />
             ) : (
               <Text style={styles.titleLabel}>Task: <Text style={styles.titleValue}>{title}</Text></Text>
@@ -271,12 +308,20 @@ export default function FocusTab() {
             <TouchableOpacity
               onPress={() => {
                 if (editingTitle) { setEditingTitle(false); }
-                else { setEditingTitle(true); setTimeout(() => titleInputRef.current?.focus(), 0); }
+                else { setTitleDraft(''); setEditingTitle(true); setTimeout(() => titleInputRef.current?.focus(), 0); }
               }}
               style={styles.titleIcon}
             >
               <Ionicons name="create-outline" size={20} color="#fff" />
             </TouchableOpacity>
+            <TouchableOpacity onPress={pickBackgroundImage} style={styles.titleIcon}>
+              <Ionicons name="image-outline" size={20} color="#fff" />
+            </TouchableOpacity>
+            {bgUri && (
+              <TouchableOpacity onPress={clearBackgroundImage} style={styles.titleIcon}>
+                <Ionicons name="trash-outline" size={20} color="#fff" />
+              </TouchableOpacity>
+            )}
             <TouchableOpacity onPress={() => setColorSheetOpen(true)} style={styles.titleIcon}>
               <Ionicons name="color-palette-outline" size={20} color="#fff" />
             </TouchableOpacity>
@@ -286,16 +331,16 @@ export default function FocusTab() {
 
       <View style={styles.centerWrap}>
         {/* Center Timer */}
-        <View style={styles.timerPane}>
-          <View style={styles.timerRing}>
+        <View style={[styles.timerPane, bgUri && { opacity: 0.9 }]}>
+          <View style={[styles.timerRing, bgUri && { backgroundColor: 'rgba(0,0,0,0.12)', borderColor: 'rgba(46,49,58,0.25)' }]}>
             <Svg width={280} height={280} style={{ position: 'absolute' }}>
-              <Circle cx={140} cy={140} r={130} stroke="#1f2230" strokeWidth={10} fill="none" />
+              <Circle cx={140} cy={140} r={130} stroke="#1f2230" strokeWidth={10} fill="none" opacity={bgUri ? 0.45 : 1} />
               <Circle
                 cx={140}
                 cy={140}
                 r={130}
                 stroke={titleColor}
-                strokeOpacity={0.35}
+                strokeOpacity={bgUri ? 0.65 : 0.35}
                 strokeWidth={10}
                 strokeDasharray={`${((1 - (seconds / (phase==='work'?workLenSec:breakLenSec))) * 2 * Math.PI * 130).toFixed(2)} ${(2 * Math.PI * 130).toFixed(2)}`}
                 strokeLinecap="round"
@@ -321,12 +366,12 @@ export default function FocusTab() {
                 keyboardType="number-pad"
                 autoFocus
                 onBlur={commitTimeInput}
-                placeholder="25"
+                placeholder="25:00"
                 placeholderTextColor="#5a5f6b"
               />
             ) : (
               <TouchableOpacity activeOpacity={0.8} onPress={() => { setTimeInput(''); setTimerSheetOpen(true); }}>
-                <Text style={styles.timeText}>{fmt(seconds)}</Text>
+                <Text style={[styles.timeText, bgUri && { color: 'rgba(255,255,255,0.92)' }]}>{fmt(seconds)}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -363,20 +408,20 @@ export default function FocusTab() {
               <Text style={[styles.ctrlTxt, { color: '#e7e7ea' }]}>Subtasks</Text>
             </TouchableOpacity>
           </View>
-          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12, marginTop: 12 }}>
+          <View style={[styles.sessionDotsRow, bgUri && styles.sessionPillOverBg]}>
             {Array.from({ length: totalSessions }).map((_, i) => {
               const progressIndex = Math.max(0, totalSessions - sessionsLeft); // 0-based current session index
               const isActive = (phase === 'work' || phase === 'break' || phase === 'paused') && progressIndex === i;
               const isCompleted = progressIndex > i;
-              const baseColor = titleColor;
-              const opacity = isCompleted ? 1 : isActive ? 1 : 0.3; // pending sessions are dimmed
+              const baseColor = bgUri ? '#ffffff' : titleColor;
+              const opacity = isCompleted ? 0.95 : isActive ? 0.95 : 0.55; // pending sessions dimmed but visible
               return (
                 <View
                   key={i}
                   style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
+                    width: 12,
+                    height: 12,
+                    borderRadius: 6,
                     backgroundColor: baseColor,
                     opacity,
                   }}
@@ -396,10 +441,16 @@ export default function FocusTab() {
             <View style={styles.sheetContainer}>
               <Text style={styles.sideHeader}>Subtasks</Text>
               <ScrollView style={{ maxHeight: 260 }} contentContainerStyle={{ paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
-                {subtasks.map((s, i) => (
-                  <View key={i} style={styles.subtaskItem}><Text style={styles.subtaskLabel}>{s}</Text></View>
-      ))}
-    </ScrollView>
+                {subtasks.map((s) => (
+                  <TouchableOpacity key={s.id} style={[styles.subtaskItem, { flexDirection: 'row', alignItems: 'center' }]}
+                    onPress={() => toggleSubtask(s.id)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name={s.done ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={s.done ? '#67c99a' : '#bbb'} style={{ marginRight: 10 }} />
+                    <Text style={[styles.subtaskLabel, s.done && { textDecorationLine: 'line-through', color: '#8e8e93' }]}>{s.text}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
               <View style={styles.subtaskInputRow}>
                 <TextInput
                   style={styles.subtaskInput}
@@ -529,6 +580,7 @@ export default function FocusTab() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f8ff', padding: 16 },
+  bgImage: { resizeMode: 'cover' },
   titlePill: { alignItems: 'center', marginBottom: 24, marginTop: 8 },
   titleBox: { width: '90%', backgroundColor: '#5b47a8', borderRadius: 20, paddingHorizontal: 18, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   titleContent: { flex: 1 },
@@ -550,6 +602,8 @@ const styles = StyleSheet.create({
   sidePane: { width: 320, alignSelf: 'flex-end', backgroundColor: '#121317', borderRadius: 12, padding: 12 },
   sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheetContainer: { backgroundColor: '#121317', padding: 16, borderTopLeftRadius: 16, borderTopRightRadius: 16 },
+  sessionDotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginTop: 12, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16 },
+  sessionPillOverBg: { backgroundColor: 'rgba(17,17,17,0.35)' },
   pill: { backgroundColor: '#1a1b21', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 14 },
   sideHeader: { color: '#fff', fontWeight: '700', marginBottom: 10 },
   subtaskItem: { backgroundColor: '#1a1b21', padding: 10, borderRadius: 8, marginBottom: 8 },
