@@ -1,8 +1,8 @@
 import { useListContext } from '@/context/ListContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React from 'react';
-import { FlatList, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ListPickerScreen() {
   const params = useLocalSearchParams();

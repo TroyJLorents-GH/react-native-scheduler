@@ -1,7 +1,8 @@
 import { PomodoroSettings } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { useFocusContext } from '../context/FocusContext';
 
 interface PomodoroTimerProps {
@@ -166,14 +167,45 @@ export default function PomodoroTimer({ settings, onComplete, autoStart, onStart
     return currentPhase === 'work' ? '#FF6B6B' : '#4ECDC4';
   };
 
+  const totalSeconds = useMemo(() => {
+    const w = getTimeInSeconds(settings.workTime, settings.workUnit);
+    const b = getTimeInSeconds(settings.breakTime, settings.breakUnit);
+    return currentPhase === 'work' ? w : b;
+  }, [settings.workTime, settings.workUnit, settings.breakTime, settings.breakUnit, currentPhase]);
+
+  // Circle ring dims
+  const size = 220;
+  const r = 100;
+  const cx = size / 2;
+  const cy = size / 2;
+  const circumference = 2 * Math.PI * r;
+  const progress = Math.max(0, Math.min(1, totalSeconds ? 1 - (timeLeft / Math.max(1, totalSeconds)) : 0));
+  const dash = `${(progress * circumference).toFixed(2)} ${circumference.toFixed(2)}`;
+  const dotAngle = -Math.PI / 2 + progress * 2 * Math.PI;
+  const dotX = cx + r * Math.cos(dotAngle);
+  const dotY = cy + r * Math.sin(dotAngle);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{getPhaseText()}</Text>
-      
-      <View style={styles.timerContainer}>
-        <Text style={[styles.timer, { color: getPhaseColor() }]}>
-          {formatTime(timeLeft)}
-        </Text>
+      <View style={styles.ringWrap}>
+        <Svg width={size} height={size}>
+          <Circle cx={cx} cy={cy} r={r} stroke="#1f2230" strokeWidth={10} fill="none" />
+          <Circle
+            cx={cx}
+            cy={cy}
+            r={r}
+            stroke={getPhaseColor()}
+            strokeOpacity={0.6}
+            strokeWidth={10}
+            strokeDasharray={dash}
+            strokeLinecap="round"
+            fill="none"
+            transform={`rotate(-90 ${cx} ${cy})`}
+          />
+          <Circle cx={dotX} cy={dotY} r={6} fill={getPhaseColor()} stroke="#fff" strokeWidth={2} />
+        </Svg>
+        <Text style={styles.timer}>{formatTime(timeLeft)}</Text>
       </View>
 
       <View style={styles.controls}>
@@ -223,8 +255,8 @@ export default function PomodoroTimer({ settings, onComplete, autoStart, onStart
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#1c1c1e',
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: 16,
+    padding: 16,
     marginVertical: 8,
     alignItems: 'center',
   },
@@ -232,26 +264,32 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 16,
+    marginBottom: 10,
   },
-  timerContainer: {
-    marginBottom: 20,
+  ringWrap: {
+    width: 220,
+    height: 220,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
   },
   timer: {
-    fontSize: 48,
-    fontWeight: '700',
-    fontFamily: 'monospace',
+    position: 'absolute',
+    color: '#e7e7ea',
+    fontSize: 40,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
   controls: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   playButton: {
     backgroundColor: '#4CAF50',
     borderRadius: 25,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -259,8 +297,8 @@ const styles = StyleSheet.create({
   pauseButton: {
     backgroundColor: '#FF9800',
     borderRadius: 25,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -268,8 +306,8 @@ const styles = StyleSheet.create({
   stopButton: {
     backgroundColor: '#F44336',
     borderRadius: 25,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -280,7 +318,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   settings: {
-    marginTop: 8,
+    marginTop: 4,
   },
   settingsText: {
     color: '#8e8e93',

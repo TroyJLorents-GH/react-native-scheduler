@@ -13,6 +13,8 @@ type Props = {
 function getSectionedTodos(todos: Todo[]) {
   const grouped: { [date: string]: Todo[] } = {};
   const processedIds = new Set<string>();
+  const today = moment().startOf('day');
+  const cutoff = today.clone().subtract(7, 'days');
 
   todos.forEach(todo => {
     if (!todo.dueDate || processedIds.has(todo.id)) return;
@@ -20,6 +22,8 @@ function getSectionedTodos(todos: Todo[]) {
     processedIds.add(todo.id);
 
     const due = moment(todo.dueDate);
+    // Only include past 7 days for overdue items
+    if (due.isBefore(cutoff, 'day')) return;
     // No rollover: always keep tasks on their original due dates
     const dateKey = due.format('YYYY-MM-DD');
     if (!grouped[dateKey]) grouped[dateKey] = [];
@@ -27,7 +31,7 @@ function getSectionedTodos(todos: Todo[]) {
   });
 
   // Ensure today section exists, even if empty, so we can focus it at top
-  const todayKey = moment().format('YYYY-MM-DD');
+  const todayKey = today.format('YYYY-MM-DD');
   if (!grouped[todayKey]) grouped[todayKey] = [];
 
   return Object.entries(grouped)
@@ -51,6 +55,7 @@ type Row =
 export default function TodoAgendaScreen({ todos }: Props) {
   const { toggleTodo, updateTodo } = useTodoContext();
   const listRef = useRef<SectionList<any>>(null);
+  const flatRef = useRef<any>(null);
   const sections = useMemo(() => getSectionedTodos(todos), [todos]);
   const todayKey = moment().format('YYYY-MM-DD');
   const todayIndex = useMemo(() => sections.findIndex(s => s.key === todayKey), [sections, todayKey]);
@@ -70,19 +75,22 @@ export default function TodoAgendaScreen({ todos }: Props) {
     return rows;
   }, [sections]);
 
+  // Calculate index of today's header
+  const todayFlatIndex = useMemo(() => flatData.findIndex(r => r.type === 'header' && r.key === todayKey), [flatData, todayKey]);
+
   // Auto-position so today's header is at top on mount/update
   useEffect(() => {
-    if (todayIndex >= 0) {
+    if (todayFlatIndex >= 0) {
       const id = requestAnimationFrame(() => {
-        // Find the index of today's header in flat data
-        const idx = flatData.findIndex(r => r.type === 'header' && r.key === todayKey);
-        if (idx >= 0) {
-          // Using SectionList ref not applicable; we can scroll DraggableFlatList via scrollToIndex after ref capture.
+        try {
+          flatRef.current?.scrollToIndex?.({ index: todayFlatIndex, animated: false, viewPosition: 0 });
+        } catch {
+          setTimeout(() => flatRef.current?.scrollToIndex?.({ index: todayFlatIndex, animated: false, viewPosition: 0 }), 150);
         }
       });
       return () => cancelAnimationFrame(id);
     }
-  }, [todayIndex, flatData, todayKey]);
+  }, [todayFlatIndex]);
 
   const renderRow = ({ item, drag, isActive }: RenderItemParams<Row>) => {
     if (item.type === 'header') {
@@ -171,11 +179,20 @@ export default function TodoAgendaScreen({ todos }: Props) {
 
   return (
     <DraggableFlatList<Row>
+      ref={flatRef}
       data={flatData}
       keyExtractor={(item, index) => item.type === 'header' ? `h-${item.key}` : `i-${item.todo.id}`}
       renderItem={renderRow}
       activationDistance={12}
       onDragEnd={onDragEnd}
+      onScrollToIndexFailed={({ index, highestMeasuredFrameIndex }) => {
+        if (highestMeasuredFrameIndex >= 0) {
+          flatRef.current?.scrollToIndex?.({ index: Math.max(0, highestMeasuredFrameIndex), animated: false });
+        } else {
+          flatRef.current?.scrollToOffset?.({ offset: 0, animated: false });
+        }
+        setTimeout(() => flatRef.current?.scrollToIndex?.({ index, animated: false, viewPosition: 0 }), 200);
+      }}
       containerStyle={{ paddingBottom: 60 }}
     />
   );

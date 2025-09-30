@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 const SETTINGS_KEY = 'scheduler.settings.v1';
 
@@ -13,6 +13,8 @@ type Settings = {
   email?: string | null;
   authProvider?: 'google' | 'apple' | 'local' | null;
   subscription?: string | null;
+  dailyFocusGoalMin?: number | null;
+  weeklyPomoGoal?: number | null;
 };
 
 export default function SettingsScreen() {
@@ -41,7 +43,10 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>Settings</Text>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 40 }}>
+          <TouchableOpacity style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} activeOpacity={1} onPress={() => Keyboard.dismiss()} />
+          <Text style={styles.header}>Settings</Text>
 
       {/* Account Info */}
       <View style={styles.card}>
@@ -89,19 +94,42 @@ export default function SettingsScreen() {
               <Text style={styles.label}>Rollover incomplete previous tasks to today</Text>
               <Switch value={settings.rolloverEnabled} onValueChange={(v) => setSettings(s => ({ ...s, rolloverEnabled: v }))} />
             </View>
-            <Text style={styles.label}>The completed list automatically clears after the set number of days:</Text>
+            <Text style={[styles.smallLabel]}>The completed list automatically clears after the set number of days</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. 30"
+              placeholder="Days to keep completed (e.g., 30)"
               placeholderTextColor="#8e8e93"
               keyboardType="number-pad"
               value={settings.autoPurgeCompletedDays?.toString() ?? ''}
               onChangeText={(t) => setSettings(s => ({ ...s, autoPurgeCompletedDays: t ? Number(t) : null }))}
             />
+            <Text style={styles.hint}>Older completed tasks will be removed automatically.</Text>
+            <Text style={[styles.smallLabel, { marginTop: 10 }]}>Daily focus goal (minutes)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Minutes to focus per day (e.g., 60)"
+              placeholderTextColor="#8e8e93"
+              keyboardType="number-pad"
+              value={settings.dailyFocusGoalMin?.toString() ?? ''}
+              onChangeText={(t) => setSettings(s => ({ ...s, dailyFocusGoalMin: t ? Number(t) : null }))}
+            />
+            <Text style={styles.hint}>Used for streaks and daily progress on Home.</Text>
+            <Text style={[styles.smallLabel, { marginTop: 10 }]}>Weekly pomodoros goal</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Pomodoro sessions per week (e.g., 25)"
+              placeholderTextColor="#8e8e93"
+              keyboardType="number-pad"
+              value={settings.weeklyPomoGoal?.toString() ?? ''}
+              onChangeText={(t) => setSettings(s => ({ ...s, weeklyPomoGoal: t ? Number(t) : null }))}
+            />
+            <Text style={styles.hint}>A pomodoro counts when a work session is completed.</Text>
             <Text style={styles.hint}>Tap outside to auto-save.</Text>
           </View>
         )}
       </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -111,6 +139,7 @@ const styles = StyleSheet.create({
   header: { color: '#fff', fontSize: 20, fontWeight: '700', marginBottom: 12 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: '#38383a' },
   label: { color: '#fff', fontSize: 16, flex: 1, marginRight: 12 },
+  smallLabel: { color: '#9ca3af', fontSize: 13, marginTop: 6 },
   input: { backgroundColor: '#1c1c1e', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: '#fff', marginTop: 8 },
   hint: { color: '#8e8e93', fontSize: 12, marginTop: 6 },
   card: { backgroundColor: '#121317', borderRadius: 16, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#1f1f23' },

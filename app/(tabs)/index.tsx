@@ -7,8 +7,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import DraggableFlatList from 'react-native-draggable-flatlist';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Circle } from 'react-native-svg';
 import { useListContext } from '../../context/ListContext';
 import { Todo, useTodoContext } from '../../context/TodoContext';
+import { getFocusMinutesSince } from '../../utils/stats';
 
 export default function HomeDashboard() {
   const { todos, toggleTodo } = useTodoContext();
@@ -17,6 +19,23 @@ export default function HomeDashboard() {
   
   // Greeting pulls username from Settings
   const [username, setUsername] = useState('');
+  const [weeklyMin, setWeeklyMin] = useState<number>(0);
+  const [weeklyGoalMin, setWeeklyGoalMin] = useState<number>(300);
+  const refreshWeekly = useCallback(async () => {
+    setWeeklyMin(await getFocusMinutesSince(7));
+    try {
+      const raw = await AsyncStorage.getItem('scheduler.settings.v1');
+      if (raw) {
+        const s = JSON.parse(raw);
+        const daily = Number(s?.dailyFocusGoalMin) || 0;
+        setWeeklyGoalMin(daily > 0 ? daily * 7 : 300);
+      } else {
+        setWeeklyGoalMin(300);
+      }
+    } catch { setWeeklyGoalMin(300); }
+  }, []);
+  useEffect(() => { refreshWeekly(); }, [refreshWeekly]);
+  useFocusEffect(useCallback(() => { refreshWeekly(); }, [refreshWeekly]));
   const loadUsername = useCallback(async () => {
     try { const u = await AsyncStorage.getItem('account.username'); setUsername(u || ''); } catch {}
   }, []);
@@ -152,6 +171,36 @@ export default function HomeDashboard() {
         </TouchableOpacity>
 
       {/* Today's Schedule removed */}
+
+      {/* Weekly Focus (no nav to Stats for now) */}
+      <View style={styles.card}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={styles.sectionTitle}><MaterialCommunityIcons name="timer-sand" size={21} color="#556de8" />  Weekly Focus</Text>
+          <Text style={{ color: '#7a7c96', fontWeight: '600' }}>{Math.floor(weeklyMin/60)}h {weeklyMin%60}m</Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+          {(() => {
+            const g = Math.max(1, weeklyGoalMin || 300); // default if not set
+            const pct = Math.min(1, weeklyMin / g);
+            const size = 64; const r = 26; const cx = size/2; const cy = size/2; const C = 2*Math.PI*r; const dash = `${(pct*C).toFixed(1)} ${C.toFixed(1)}`;
+            return (
+              <View style={{ width: size, height: size, marginRight: 12 }}>
+                <Svg width={size} height={size}>
+                  <Circle cx={cx} cy={cy} r={r} stroke="#e5e7f3" strokeWidth={8} fill="none" />
+                  <Circle cx={cx} cy={cy} r={r} stroke="#556de8" strokeWidth={8} strokeDasharray={dash} strokeLinecap="round" fill="none" transform={`rotate(-90 ${cx} ${cy})`} />
+                </Svg>
+                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: '#556de8', fontWeight: '700' }}>{Math.round(pct*100)}%</Text>
+                </View>
+              </View>
+            );
+          })()}
+          <View>
+            <Text style={{ color: '#323447', fontWeight: '700' }}>Last 7 days</Text>
+            <Text style={{ color: '#7a7c96' }}>{weeklyMin} min • Goal {weeklyGoalMin} min</Text>
+          </View>
+        </View>
+      </View>
 
       {/* Today's Tasks */}
       <View style={styles.card}>

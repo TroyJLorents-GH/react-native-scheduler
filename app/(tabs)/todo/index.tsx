@@ -3,6 +3,7 @@ import CreateListModal from '@/components/CreateListModal';
 import { useListContext } from '@/context/ListContext';
 import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Link, router } from 'expo-router';
 import moment from 'moment';
 import { useMemo, useState } from 'react';
@@ -65,12 +66,11 @@ export default function TodoDashboard() {
 
         {/* Cards grid */}
         <View style={s.grid}>
-          <DashCard label="All"        count={counts.all}        href="/todo/all" />
+          <DashCard label="Scheduled"        count={counts.all}        href="/todo/all" />
           <DashCard label="Today's Tasks"  count={counts.scheduled}  href="/todo/scheduled" />
           <DashCard label="Completed"  count={counts.completed}  href="/todo/completed" />
           <DashCard label="Priority"   count={counts.priority}   href="/todo/priority" />
           <DashCard label="Focus Sessions" count={counts.focus} href={{ pathname: '/todo/list-items', params: { listId: 'focus' } }} />
-          <DashCard label="Lists"      count={counts.lists}      href="/todo/lists" />
         </View>
 
         {/* (Removed: View Completed button for dashboard) */}
@@ -167,11 +167,45 @@ function DashCard({
   count: number;
   href: any;
 }) {
+  const getGradient = (
+    name: string
+  ): { colors: [string, string]; locations?: [number, number] } => {
+    switch (name) {
+      case 'Priority':
+        // to left, #f01919 -> #f6b5b5
+        return { colors: ['#f01919', '#f6b5b5'] };
+      case "Today's Tasks":
+        // to left, #0000ff -> #ffffff
+        return { colors: ['#0099cc', '#33ccff'] };
+      case 'Scheduled':
+        // to left, #666697 (5%) -> #000066 (100%)
+        return { colors: ['#666697', '#000066'], locations: [0.35, 1] };
+      case 'Completed':
+        // to left, #3333cc -> #666699
+        return { colors: ['#b8becc', '#666699'] };
+      case 'Focus Sessions':
+        // to left, #9900cc -> #3366ff
+        return { colors: ['#9900cc', '#3366ff'] };
+      default:
+        return { colors: ['#5a5f69', '#2b2d31'] };
+    }
+  };
   return (
     <Link href={href} asChild>
-      <TouchableOpacity style={s.card}>
-        <Text style={s.cardTitle}>{label}</Text>
-        <Text style={s.cardCount}>{count}</Text>
+      <TouchableOpacity style={s.card} activeOpacity={0.9}>
+        {(() => { const cfg = getGradient(label); return (
+          <LinearGradient
+            colors={cfg.colors}
+            locations={cfg.locations}
+            // to left: right -> left
+            start={{ x: 1, y: 0 }}
+            end={{ x: 0, y: 0 }}
+            style={s.cardInner}
+          >
+          <Text style={s.cardTitle}>{label}</Text>
+          <Text style={s.cardCount}>{count}</Text>
+          </LinearGradient>
+        ); })()}
       </TouchableOpacity>
     </Link>
   );
@@ -185,16 +219,18 @@ const s = StyleSheet.create({
   completedBtnText: { color: '#3f51d1', fontWeight: '700' },
   card: {
     width: '48%',
-    backgroundColor: '#fff',
     borderRadius: 16,
-    padding: 16,
+    overflow: 'hidden',
     shadowColor: '#222',
     shadowOpacity: 0.06,
     shadowRadius: 6,
     elevation: 2,
   },
-  cardTitle: { color: '#374151', fontWeight: '700', marginBottom: 10 },
-  cardCount: { color: '#3f51d1', fontSize: 28, fontWeight: '800' },
+  cardInner: {
+    padding: 10,
+  },
+  cardTitle: { color: '#ffffff', fontWeight: '700', marginBottom: 10 },
+  cardCount: { color: '#ffffff', fontSize: 28, fontWeight: '800' },
 
   sectionHeader: { marginTop: 2, marginBottom: 10, paddingRight: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sectionTitle: { fontSize: 20, fontWeight: '800', color: '#111827' },

@@ -1,7 +1,6 @@
 import SmartListScreen from '@/components/SmartListScreen';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function AllTodosScreen() {

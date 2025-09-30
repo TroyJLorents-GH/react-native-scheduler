@@ -3,9 +3,10 @@ import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Modal, Platform, SafeAreaView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, Platform, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function DetailsScreen() {
   const params = useLocalSearchParams();

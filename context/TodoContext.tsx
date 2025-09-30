@@ -1,3 +1,4 @@
+import { appendCompletionLog } from '@/utils/stats';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 
@@ -122,7 +123,11 @@ export const TodoProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setTodos(prev => prev.map(t => {
       if (t.id !== id) return t;
       const nowDone = !t.done;
-      return { ...t, done: nowDone, completedAt: nowDone ? new Date() : undefined };
+      const updated = { ...t, done: nowDone, completedAt: nowDone ? new Date() : undefined } as Todo;
+      if (nowDone) {
+        try { appendCompletionLog({ id: updated.id, completedAt: Date.now(), listId: updated.listId, priority: updated.priority }); } catch {}
+      }
+      return updated;
     }));
   
   const deleteTodo = (id: string) =>

@@ -4,19 +4,26 @@ import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Image, Linking, Modal, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Linking, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 export default function TaskDetailsScreen() {
   const { id, autostart, from } = useLocalSearchParams<{ id: string; autostart?: string; from?: string }>();
-  const { todos, toggleTodo, toggleSubTask, updateTodo } = useTodoContext();
+  const { todos, toggleTodo, toggleSubTask, updateTodo, deleteTodo } = useTodoContext();
   const { startTaskSession } = useFocusContext();
   const [moreExpanded, setMoreExpanded] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [imageIndex, setImageIndex] = useState(0);
 
   const todo = todos.find(t => t.id === id);
+  // Seed draft when task loads
+  if (todo && !editingTitle && titleDraft === '') {
+    // initialize once when entering screen
+    try { setTitleDraft(todo.text || ''); } catch {}
+  }
 
   // Note: Do not auto-redirect focus tasks. Upstream navigation decides where to go.
 
@@ -103,7 +110,7 @@ export default function TaskDetailsScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
         {/* Task Title */}
         <View style={styles.section}>
           <View style={styles.titleRow}>
@@ -117,9 +124,38 @@ export default function TaskDetailsScreen() {
                 color={todo.done ? '#67c99a' : '#bbb'} 
               />
             </TouchableOpacity>
-            <Text style={[styles.title, todo.done && styles.doneText]}>
-              {todo.text}
-            </Text>
+            {editingTitle ? (
+              <TextInput
+                value={titleDraft}
+                onChangeText={setTitleDraft}
+                style={styles.titleInput}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={() => {
+                  const next = titleDraft.trim();
+                  if (next.length) updateTodo(todo.id, { text: next });
+                  setEditingTitle(false);
+                }}
+                onBlur={() => {
+                  const next = titleDraft.trim();
+                  if (next.length) updateTodo(todo.id, { text: next });
+                  setEditingTitle(false);
+                }}
+                placeholder="Task name"
+                placeholderTextColor="#8e8e93"
+              />
+            ) : (
+              <TouchableOpacity style={{ flex: 1 }} activeOpacity={0.8} onPress={() => setEditingTitle(true)}>
+                <Text style={[styles.title, todo.done && styles.doneText]} numberOfLines={2}>
+                  {todo.text}
+                </Text>
+              </TouchableOpacity>
+            )}
+            {!editingTitle && (
+              <TouchableOpacity onPress={() => setEditingTitle(true)} style={{ padding: 6, marginLeft: 4 }}>
+                <Ionicons name="create-outline" size={18} color="#e7e7ea" />
+              </TouchableOpacity>
+            )}
             {priorityColor && priorityAbbr && (
               <View style={[styles.prioritySupBadge, { backgroundColor: priorityColor }]}>
                 <Text style={styles.prioritySupText}>{priorityAbbr}</Text>
@@ -128,50 +164,28 @@ export default function TaskDetailsScreen() {
           </View>
         </View>
 
-        {/* Work Session Pomodoro */}
+        {/* Work Session Pomodoro (directly under title) */}
         {todo.pomodoro?.enabled && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Work Session Pomodoro</Text>
+          <View style={[styles.section, { marginBottom: 16 }]}>
             <PomodoroTimer 
               settings={todo.pomodoro}
               onComplete={handleTimerComplete}
               autoStart={shouldAutoStart}
               onStart={() => startTaskSession({ id: todo.id, title: todo.text, workMinutes: Math.max(1, todo.pomodoro?.workTime || 25) })}
-              onPause={() => {/* keep global in sync */}}
-              onResume={() => {/* keep global in sync */}}
-              onStop={() => {/* keep global in sync */}}
+              onPause={() => {}}
+              onResume={() => {}}
+              onStop={() => {}}
               taskId={todo.id}
               taskTitle={todo.text}
             />
           </View>
         )}
 
-        {/* Notes */}
+        {/* Notes (denser and first) */}
         {todo.notes && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Notes</Text>
             <Text style={styles.notes}>{todo.notes}</Text>
-          </View>
-        )}
-
-        {/* Images */}
-        {todo.images && todo.images.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Images</Text>
-            <View style={styles.imagesGrid}>
-              {todo.images.map((uri, idx) => (
-                <TouchableOpacity
-                  key={uri}
-                  style={styles.imageItem}
-                  onPress={() => {
-                    setImageIndex(idx);
-                    setImageViewerOpen(true);
-                  }}
-                >
-                  <Image source={{ uri }} style={styles.imageThumb} />
-                </TouchableOpacity>
-              ))}
-            </View>
           </View>
         )}
 
@@ -259,6 +273,27 @@ export default function TaskDetailsScreen() {
           </View>
         )}
 
+        {/* Images */}
+        {todo.images && todo.images.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Images</Text>
+            <View style={styles.imagesGrid}>
+              {todo.images.map((uri, idx) => (
+                <TouchableOpacity
+                  key={uri}
+                  style={styles.imageItem}
+                  onPress={() => {
+                    setImageIndex(idx);
+                    setImageViewerOpen(true);
+                  }}
+                >
+                  <Image source={{ uri }} style={styles.imageThumb} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Priority section removed; priority shown as superscript next to title */}
 
         {/* More Section */}
@@ -307,6 +342,27 @@ export default function TaskDetailsScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Bottom Action Bar */}
+      <View style={styles.bottomBar}>
+        <TouchableOpacity style={[styles.bottomBtn, { backgroundColor: todo.done ? '#9ca3af' : '#67c99a' }]} onPress={() => toggleTodo(todo.id)}>
+          <Ionicons name={todo.done ? 'checkmark-done' : 'checkmark-circle'} size={18} color="#0b0b0c" />
+          <Text style={styles.bottomBtnText}>{todo.done ? 'Completed' : 'Complete'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.bottomBtn, { backgroundColor: '#556de8' }]} onPress={() => startTaskSession({ id: todo.id, title: todo.text, workMinutes: Math.max(1, todo.pomodoro?.workTime || 25) })}>
+          <Ionicons name="play" size={18} color="#fff" />
+          <Text style={[styles.bottomBtnText, { color: '#fff' }]}>Start Focus</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.bottomBtn, { backgroundColor: '#ef4444' }]} onPress={() => {
+          Alert.alert('Delete Task', 'Are you sure you want to delete this task?', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Delete', style: 'destructive', onPress: () => { deleteTodo(todo.id); router.back(); } },
+          ]);
+        }}>
+          <Ionicons name="trash" size={18} color="#fff" />
+          <Text style={[styles.bottomBtnText, { color: '#fff' }]}>Delete</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Image Viewer Modal */}
       {todo.images && todo.images.length > 0 && (
@@ -370,9 +426,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
-  section: {
-    marginBottom: 24,
-  },
+  section: { marginBottom: 16 },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -388,6 +442,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     flex: 1,
     lineHeight: 32,
+  },
+  titleInput: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: '700',
+    flex: 1,
   },
   prioritySupBadge: {
     alignSelf: 'flex-start',
@@ -413,50 +473,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
   },
-  notes: {
-    color: '#fff',
-    fontSize: 16,
-    lineHeight: 24,
-    backgroundColor: '#1c1c1e',
-    padding: 16,
-    borderRadius: 12,
-  },
-  imagesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  imageItem: {
-    width: 90,
-    height: 90,
-    borderRadius: 10,
-    overflow: 'hidden',
-    backgroundColor: '#1c1c1e',
-  },
+  notes: { color: '#fff', fontSize: 16, lineHeight: 22, backgroundColor: '#1c1c1e', padding: 12, borderRadius: 12 },
+  imagesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  imageItem: { width: 86, height: 86, borderRadius: 10, overflow: 'hidden', backgroundColor: '#1c1c1e' },
   imageThumb: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
   },
-  dueDateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1c1c1e',
-    padding: 16,
-    borderRadius: 12,
-  },
+  dueDateRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1c1c1e', padding: 12, borderRadius: 12 },
   dueDateText: {
     color: '#fff',
     fontSize: 16,
     marginLeft: 12,
   },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1c1c1e',
-    padding: 16,
-    borderRadius: 12,
-  },
+  locationRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1c1c1e', padding: 12, borderRadius: 12 },
   locationText: {
     color: '#fff',
     fontSize: 16,
@@ -479,14 +510,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  subtaskRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1c1c1e',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
+  subtaskRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1c1c1e', padding: 12, borderRadius: 12, marginBottom: 8 },
   subtaskText: {
     color: '#fff',
     fontSize: 16,
@@ -569,5 +593,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     marginTop: 40,
+  },
+  bottomBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 14,
+    backgroundColor: '#0e0f13',
+    borderTopWidth: 0.5,
+    borderTopColor: '#2a2a2a',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  bottomBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 10,
+    paddingVertical: 10,
+  },
+  bottomBtnText: {
+    color: '#0b0b0c',
+    fontWeight: '700',
   },
 });

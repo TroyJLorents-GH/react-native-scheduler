@@ -1,4 +1,6 @@
+import { appendFocusLog } from '@/utils/stats';
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useTodoContext } from './TodoContext';
 
 type SessionSource = 'task' | 'focus';
 type Phase = 'idle' | 'work' | 'break' | 'paused';
@@ -27,6 +29,7 @@ const FocusContext = createContext<FocusContextValue | undefined>(undefined);
 export const FocusProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<ActiveSession | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { todos } = useTodoContext();
 
   const clear = () => { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; } };
 
@@ -65,7 +68,17 @@ export const FocusProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     startFocusSession: ({ title, workMinutes }) => start(`focus-${Date.now()}`, title, workMinutes, 'focus'),
     pause: () => setSession(prev => prev ? { ...prev, phase: 'paused' } : prev),
     resume: () => setSession(prev => prev ? { ...prev, phase: 'work' } : prev),
-    stop: () => setSession(null),
+    stop: () => {
+      setSession(prev => {
+        if (prev) {
+          const endedAt = Date.now();
+          const startedAt = endedAt - (prev.totalSec - prev.remainingSec) * 1000;
+          const t = todos.find(x => x.id === prev.id);
+          appendFocusLog({ id: prev.id, title: prev.title, source: prev.source, startedAt, endedAt, workSec: prev.totalSec - prev.remainingSec, taskId: t?.id, listId: t?.listId });
+        }
+        return null;
+      });
+    },
     tickOne: () => tick(),
   }), [session]);
 

@@ -128,16 +128,7 @@ export default function ListItems() {
             <Text style={styles.itemCount}>{listTodos.length} items</Text>
           </View>
         )}
-        {String(listId) !== 'focus' && (
-          <TouchableOpacity 
-            style={styles.toggleButton}
-            onPress={() => setShowCompleted(!showCompleted)}
-          >
-            <Text style={styles.toggleText}>
-              {showCompleted ? 'Hide Completed' : 'Show Completed'}
-            </Text>
-          </TouchableOpacity>
-        )}
+        <View style={styles.placeholder} />
       </View>
 
       {/* List Items */}
