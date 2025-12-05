@@ -1,7 +1,7 @@
 import { useTodoContext } from '@/context/TodoContext';
+import { getTasksForDate } from '@/utils/recurring';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import moment from 'moment';
 import { useMemo } from 'react';
 import {
   FlatList,
@@ -14,13 +14,12 @@ import {
 export default function TodaysTasksScreen() {
   const { todos, toggleTodo } = useTodoContext();
 
-  // Filter todos for today
+  // Filter todos for today - using recurring logic
   const todaysTodos = useMemo(() => {
-    return todos.filter(todo => {
-      if (todo.done) return false; // Skip completed todos
-      if (!todo.dueDate) return false; // Skip todos without due dates
-      return moment(todo.dueDate).isSame(moment(), 'day'); // Check if due today
-    }).sort((a, b) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return getTasksForDate(todos, today).sort((a, b) => {
       // Sort by priority (high first), then by due time
       const priorityOrder = { high: 3, medium: 2, low: 1 };
       const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;

@@ -10,7 +10,7 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarStyle: {
           position: 'absolute',
-          backgroundColor: 'transparent',
+          backgroundColor: '#1a1b21',
           borderTopWidth: 0,
           elevation: 0,
           height: Platform.select({ ios: 70, android: 64, default: 64 }),
@@ -21,18 +21,20 @@ export default function TabsLayout() {
           borderRadius: 24,
           overflow: 'hidden',
           shadowColor: '#000',
-          shadowOpacity: 0.08,
-          shadowRadius: 12,
-          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.15,
+          shadowRadius: 16,
+          shadowOffset: { width: 0, height: 6 },
+          borderWidth: 1,
+          borderColor: 'rgba(255,255,255,0.08)',
         },
-        tabBarActiveTintColor: '#111827',
+        tabBarActiveTintColor: '#67c99a',
         tabBarInactiveTintColor: '#6b7280',
-        tabBarLabelStyle: { fontWeight: '600' },
+        tabBarLabelStyle: { fontWeight: '600', fontSize: 11 },
         tabBarItemStyle: { paddingVertical: 4 },
         tabBarBackground: () => (
           <View style={StyleSheet.absoluteFill}>
             <GlassView style={{ flex: 1 }} />
-            <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.25)' }} />
+            <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(26,27,33,0.95)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.1)' }} />
           </View>
         ),
       }}

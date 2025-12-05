@@ -1,6 +1,7 @@
 import PomodoroTimer from '@/components/PomodoroTimer';
 import { useFocusContext } from '@/context/FocusContext';
 import { useTodoContext } from '@/context/TodoContext';
+import { isTaskCompletedForDate } from '@/utils/recurring';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -9,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 export default function TaskDetailsScreen() {
-  const { id, autostart, from } = useLocalSearchParams<{ id: string; autostart?: string; from?: string }>();
+  const { id, autostart, from, forDate } = useLocalSearchParams<{ id: string; autostart?: string; from?: string; forDate?: string }>();
   const { todos, toggleTodo, toggleSubTask, updateTodo, deleteTodo } = useTodoContext();
   const { startTaskSession } = useFocusContext();
   const [moreExpanded, setMoreExpanded] = useState(false);
@@ -19,6 +20,24 @@ export default function TaskDetailsScreen() {
   const [imageIndex, setImageIndex] = useState(0);
 
   const todo = todos.find(t => t.id === id);
+  
+  // For recurring tasks, determine which date we're viewing
+  // Default to today if no specific date provided
+  const viewDate = useMemo(() => {
+    if (forDate) {
+      return new Date(forDate);
+    }
+    return new Date();
+  }, [forDate]);
+  
+  // Check if task is completed for the specific date (for recurring tasks)
+  const isCompletedForDate = useMemo(() => {
+    if (!todo) return false;
+    if (todo.repeat && todo.repeat !== 'Never') {
+      return isTaskCompletedForDate(todo, viewDate);
+    }
+    return todo.done;
+  }, [todo, viewDate]);
   // Seed draft when task loads
   if (todo && !editingTitle && titleDraft === '') {
     // initialize once when entering screen
@@ -116,12 +135,12 @@ export default function TaskDetailsScreen() {
           <View style={styles.titleRow}>
             <TouchableOpacity 
               style={styles.checkbox}
-              onPress={() => toggleTodo(todo.id)}
+              onPress={() => toggleTodo(todo.id, viewDate)}
             >
               <Ionicons 
-                name={todo.done ? 'checkmark-circle' : 'ellipse-outline'} 
+                name={isCompletedForDate ? 'checkmark-circle' : 'ellipse-outline'} 
                 size={24} 
-                color={todo.done ? '#67c99a' : '#bbb'} 
+                color={isCompletedForDate ? '#67c99a' : '#bbb'} 
               />
             </TouchableOpacity>
             {editingTitle ? (
@@ -146,7 +165,7 @@ export default function TaskDetailsScreen() {
               />
             ) : (
               <TouchableOpacity style={{ flex: 1 }} activeOpacity={0.8} onPress={() => setEditingTitle(true)}>
-                <Text style={[styles.title, todo.done && styles.doneText]} numberOfLines={2}>
+                <Text style={[styles.title, isCompletedForDate && styles.doneText]} numberOfLines={2}>
                   {todo.text}
                 </Text>
               </TouchableOpacity>
@@ -345,9 +364,9 @@ export default function TaskDetailsScreen() {
 
       {/* Bottom Action Bar */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={[styles.bottomBtn, { backgroundColor: todo.done ? '#9ca3af' : '#67c99a' }]} onPress={() => toggleTodo(todo.id)}>
-          <Ionicons name={todo.done ? 'checkmark-done' : 'checkmark-circle'} size={18} color="#0b0b0c" />
-          <Text style={styles.bottomBtnText}>{todo.done ? 'Completed' : 'Complete'}</Text>
+        <TouchableOpacity style={[styles.bottomBtn, { backgroundColor: isCompletedForDate ? '#9ca3af' : '#67c99a' }]} onPress={() => toggleTodo(todo.id, viewDate)}>
+          <Ionicons name={isCompletedForDate ? 'checkmark-done' : 'checkmark-circle'} size={18} color="#0b0b0c" />
+          <Text style={styles.bottomBtnText}>{isCompletedForDate ? 'Completed' : 'Complete'}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.bottomBtn, { backgroundColor: '#556de8' }]} onPress={() => startTaskSession({ id: todo.id, title: todo.text, workMinutes: Math.max(1, todo.pomodoro?.workTime || 25) })}>
           <Ionicons name="play" size={18} color="#fff" />

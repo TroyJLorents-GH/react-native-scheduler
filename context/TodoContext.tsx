@@ -40,12 +40,15 @@ export type Todo = {
     interval: number;
     endDate?: Date;
   };
+  // For recurring tasks: track which dates have been completed (YYYY-MM-DD format)
+  completedDates?: string[];
 };
 
 export type TodoContextType = {
   todos: Todo[];
+  isLoading: boolean;
   addTodo: (todo: Todo) => void;
-  toggleTodo: (id: string) => void;
+  toggleTodo: (id: string, forDate?: Date) => void;
   deleteTodo: (id: string) => void;
   addSubTask: (parentId: string, text: string) => void;
   toggleSubTask: (parentId: string, subTaskId: string) => void;
@@ -62,6 +65,7 @@ export const useTodoContext = () => {
 
 export const TodoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [todos, setTodos] = useState<Todo[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const hasLoadedRef = useRef(false);
   const STORAGE_KEY = 'scheduler.todos.v1';
 
@@ -99,6 +103,7 @@ export const TodoProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setTodos([]);
       } finally {
         hasLoadedRef.current = true;
+        setIsLoading(false);
       }
     })();
   }, []);
@@ -119,9 +124,31 @@ export const TodoProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setTodos(prev => [...prev, todoWithId]);
   };
   
-  const toggleTodo = (id: string) =>
+  const toggleTodo = (id: string, forDate?: Date) =>
     setTodos(prev => prev.map(t => {
       if (t.id !== id) return t;
+      
+      // For recurring tasks, track completion by date instead of global done flag
+      if (t.repeat && t.repeat !== 'Never') {
+        const targetDate = forDate || new Date();
+        const dateKey = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
+        const completedDates = t.completedDates || [];
+        const isCompletedForDate = completedDates.includes(dateKey);
+        
+        let newCompletedDates: string[];
+        if (isCompletedForDate) {
+          // Un-complete for this date
+          newCompletedDates = completedDates.filter(d => d !== dateKey);
+        } else {
+          // Complete for this date
+          newCompletedDates = [...completedDates, dateKey];
+          try { appendCompletionLog({ id: t.id, completedAt: Date.now(), listId: t.listId, priority: t.priority }); } catch {}
+        }
+        
+        return { ...t, completedDates: newCompletedDates };
+      }
+      
+      // For non-recurring tasks, use the original logic
       const nowDone = !t.done;
       const updated = { ...t, done: nowDone, completedAt: nowDone ? new Date() : undefined } as Todo;
       if (nowDone) {
@@ -174,7 +201,8 @@ export const TodoProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <TodoContext.Provider value={{ 
-      todos, 
+      todos,
+      isLoading,
       addTodo, 
       toggleTodo, 
       deleteTodo, 

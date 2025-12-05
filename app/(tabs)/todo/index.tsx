@@ -2,10 +2,10 @@
 import CreateListModal from '@/components/CreateListModal';
 import { useListContext } from '@/context/ListContext';
 import { useTodoContext } from '@/context/TodoContext';
+import { getTasksForDate, shouldTaskAppearOnDate, isTaskCompletedForDate } from '@/utils/recurring';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link, router } from 'expo-router';
-import moment from 'moment';
 import { useMemo, useState } from 'react';
 import {
   Platform,
@@ -27,26 +27,57 @@ export default function TodoDashboard() {
 
   // --- derived counts for the cards ---
   const counts = useMemo(() => {
-    const startOfToday = moment().startOf('day');
-    // All: active tasks due today or later (with a due date)
-    const all = todos.filter(t => !!t.dueDate && !t.done && moment(t.dueDate).isSameOrAfter(startOfToday)).length;
-    // Today's Tasks: active tasks due today only
-    const scheduled = todos.filter(t => !!t.dueDate && !t.done && moment(t.dueDate).isSame(startOfToday, 'day')).length;
-    const completed = todos.filter(t => t.done).length;
-    const todaysTasks = todos.filter(t => {
-      if (t.done) return false; // Skip completed todos
-      if (!t.dueDate) return false; // Skip todos without due dates
-      return moment(t.dueDate).isSame(moment(), 'day'); // Check if due today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Today's Tasks: using recurring logic to include tasks that repeat today
+    const todaysTasks = getTasksForDate(todos, today).length;
+    
+    // All/Scheduled: active tasks that have a due date or repeat setting
+    const all = todos.filter(t => {
+      if (t.done) return false;
+      // Include if has due date in the future
+      if (t.dueDate) {
+        const dueDate = new Date(t.dueDate);
+        dueDate.setHours(0, 0, 0, 0);
+        if (dueDate >= today) return true;
+      }
+      // Include if has repeat setting
+      if (t.repeat && t.repeat !== 'Never') return true;
+      return false;
     }).length;
-    const priority = todos.filter(t => t.priority === 'high' && !t.done).length; // Only active high priority
+    
+    // Completed: count both done flag and recurring completed for today
+    const completed = todos.filter(t => {
+      if (t.repeat && t.repeat !== 'Never') {
+        return isTaskCompletedForDate(t, today);
+      }
+      return t.done;
+    }).length;
+    
+    const priority = todos.filter(t => t.priority === 'high' && !t.done).length;
     const listCountsMap: Record<string, number> = {};
-    // Focus-only (special list)
-    const focus = todos.filter(t => t.listId === 'focus' && !t.done).length;
+    
+    // Focus-only (special list) - include recurring focus tasks for today
+    const focus = todos.filter(t => {
+      if (t.listId !== 'focus') return false;
+      if (t.repeat && t.repeat !== 'Never') {
+        return shouldTaskAppearOnDate(t, today) && !isTaskCompletedForDate(t, today);
+      }
+      return !t.done;
+    }).length;
+    
     lists.forEach(l => {
       listCountsMap[l.id] = todos.filter(t => t.listId === l.id && !t.done).length;
     });
+    
     return {
-      all, scheduled, completed, todaysTasks, priority, focus,
+      all, 
+      scheduled: todaysTasks, // Today's Tasks card shows today count
+      completed, 
+      todaysTasks, 
+      priority, 
+      focus,
       lists: lists.length,
       perList: listCountsMap,
     };

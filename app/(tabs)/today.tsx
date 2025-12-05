@@ -1,66 +1,10 @@
-// import React from 'react';
-// import { Text, View } from 'react-native';
-
-// export default function TodayScreen() {
-//   return (
-//     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-//       <Text>Today Tab</Text>
-//     </View>
-//   );
-// }
-
-// import React from 'react';
-// import { ScrollView, Text, View } from 'react-native';
-// import { useEventContext } from '../../context/EventContext';
-
-// // Optionally, import TodaysCard if you want to show a summary card above the list
-// // import TodaysCard from '../../components/TodaysCard';
-
-// const todayISO = new Date().toISOString().slice(0, 10);
-
-// export default function TodayTab() {
-//   const { events } = useEventContext();
-//   const todaysEvents = events.filter(e => e.date === todayISO);
-
-//   return (
-//     <ScrollView contentContainerStyle={{ flexGrow: 1, alignItems: 'center', padding: 16 }}>
-//       <Text style={{ fontSize: 22, marginBottom: 10 }}>Today's Events</Text>
-//       {/* Optionally show a summary card here */}
-//       {/* <TodaysCard ... /> */}
-//       {todaysEvents.length === 0 && (
-//         <Text>No events for today.</Text>
-//       )}
-//       {todaysEvents.map(event => (
-//         <View
-//           key={event.id}
-//           style={{
-//             marginVertical: 8,
-//             padding: 16,
-//             borderRadius: 12,
-//             backgroundColor: '#f3f3f3',
-//             width: 320,
-//             shadowColor: '#000',
-//             shadowOpacity: 0.2,
-//             shadowRadius: 4,
-//           }}
-//         >
-//           <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{event.title}</Text>
-//           <Text>{event.time ? event.time : ''}</Text>
-//           {event.description ? <Text>{event.description}</Text> : null}
-//         </View>
-//       ))}
-//     </ScrollView>
-//   );
-// }
-
-
-
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ImageBackground, Keyboard, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, ImageBackground, Keyboard, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { useFocusContext } from '../../context/FocusContext';
@@ -77,10 +21,10 @@ type Subtask = {
 };
 
 export default function FocusTab() {
-  const { startFocusSession } = useFocusContext();
+  const { startFocusSession, session: globalSession, pause: globalPause, resume: globalResume, stop: globalStop } = useFocusContext();
   const { focusTask, focusTaskId } = useLocalSearchParams();
-  const { todos, updateTodo } = useTodoContext();
-  const [title, setTitle] = useState('Reading');
+  const { todos, updateTodo, addTodo } = useTodoContext();
+  const [title, setTitle] = useState('');
   const [titleDraft, setTitleDraft] = useState('');
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [input, setInput] = useState('');
@@ -92,7 +36,10 @@ export default function FocusTab() {
   const [colorSheetOpen, setColorSheetOpen] = useState(false);
   const [bgUri, setBgUri] = useState<string | null>(null);
 
-  // Timer state (pomodoro)
+  // Check if we're synced to global session
+  const isSyncedToGlobal = !!globalSession;
+
+  // Timer state (pomodoro) - synced from global when active
   const [phase, setPhase] = useState<'idle'|'work'|'break'|'paused'>('idle');
   const [seconds, setSeconds] = useState(25 * 60);
   const [workLenSec, setWorkLenSec] = useState(25 * 60);
@@ -103,7 +50,19 @@ export default function FocusTab() {
   const [timeInput, setTimeInput] = useState('25');
   const [breakInput, setBreakInput] = useState('5');
   const [sessionsInput, setSessionsInput] = useState('1');
+  const [repeat, setRepeat] = useState<string>('Never');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const repeatOptions = ['Never', 'Daily', 'Weekdays', 'Weekends', 'Weekly', 'Biweekly', 'Monthly', 'Yearly'];
+
+  // Sync local state with global session when it exists
+  useEffect(() => {
+    if (globalSession) {
+      setTitle(globalSession.title);
+      setSeconds(globalSession.remainingSec);
+      setWorkLenSec(globalSession.totalSec);
+      setPhase(globalSession.phase);
+    }
+  }, [globalSession, globalSession?.remainingSec, globalSession?.phase]);
   const todayKey = useMemo(() => {
     const d = new Date();
     return `${STATS_KEY_PREFIX}${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -204,6 +163,7 @@ export default function FocusTab() {
       const focusTodo = todos.find(t => t.id === focusTaskId);
       if (focusTodo) {
         updateTodo(focusTodo.id, {
+          repeat: repeat !== 'Never' ? repeat : undefined,
           pomodoro: {
             enabled: true,
             workTime: Math.floor(w / 60),
@@ -215,6 +175,45 @@ export default function FocusTab() {
         });
       }
     }
+    
+    // If repeat is set and we have a title, auto-save as a recurring focus task
+    if (repeat !== 'Never' && title.trim() && !focusTaskId) {
+      const dueDate = new Date();
+      const newTodo = {
+        id: `focus-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        text: title.trim(),
+        done: false,
+        dueDate: dueDate,
+        createdAt: new Date(),
+        repeat: repeat,
+        pomodoro: {
+          enabled: true,
+          workTime: Math.floor((w > 0 ? w : workLenSec) / 60),
+          workUnit: 'min' as const,
+          breakTime: Math.floor((b > 0 ? b : breakLenSec) / 60),
+          breakUnit: 'min' as const,
+          sessions: ses,
+        },
+        notes: 'Focus session',
+        priority: 'medium' as const,
+        listId: 'focus',
+        subTasks: subtasks.length > 0 ? subtasks.map(s => ({
+          id: s.id,
+          text: s.text,
+          done: s.done,
+          listId: 'focus',
+          createdAt: new Date(),
+        })) : undefined,
+      };
+      
+      addTodo(newTodo);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        'Saved!', 
+        `"${title}" will repeat ${repeat.toLowerCase()}. You can find it in your Focus list.`,
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const start = () => {
@@ -224,21 +223,80 @@ export default function FocusTab() {
   const pause = () => setPhase('paused');
   const stop = () => { setPhase('idle'); setSeconds(workLenSec); setSessionsLeft(totalSessions); };
 
+  // Save current focus session as a task
+  const saveAsTask = () => {
+    if (!title.trim()) {
+      Alert.alert('Enter a title', 'Please enter what you want to focus on before saving.');
+      return;
+    }
+    
+    // Create a due date for now (or you could let user pick)
+    const dueDate = new Date();
+    
+    const newTodo = {
+      id: `focus-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      text: title.trim(),
+      done: false,
+      dueDate: dueDate,
+      createdAt: new Date(),
+      repeat: repeat !== 'Never' ? repeat : undefined,
+      pomodoro: {
+        enabled: true,
+        workTime: Math.floor(workLenSec / 60),
+        workUnit: 'min' as const,
+        breakTime: Math.floor(breakLenSec / 60),
+        breakUnit: 'min' as const,
+        sessions: totalSessions,
+      },
+      notes: 'Focus session',
+      priority: 'medium' as const,
+      listId: 'focus',
+      subTasks: subtasks.length > 0 ? subtasks.map(s => ({
+        id: s.id,
+        text: s.text,
+        done: s.done,
+        listId: 'focus',
+        createdAt: new Date(),
+      })) : undefined,
+    };
+    
+    addTodo(newTodo);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Alert.alert('Saved!', `"${title}" has been saved to your Focus list.`, [
+      { text: 'OK' }
+    ]);
+  };
+
   useEffect(() => {
     if (phase === 'work' || phase === 'break') {
       intervalRef.current && clearInterval(intervalRef.current);
       intervalRef.current = setInterval(() => {
         setSeconds(prev => {
           if (prev <= 1) {
+            // Timer finished - vibrate to alert user!
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            
             if (phase === 'work') {
               const ns = todayFocusSeconds + workLenSec;
               setTodayFocusSeconds(ns); persistStats(ns);
               const remaining = sessionsLeft - 1;
               setSessionsLeft(remaining);
-              if (remaining > 0) { setPhase('break'); return breakLenSec; }
-              setPhase('idle'); return workLenSec;
+              if (remaining > 0) { 
+                // Work session done, starting break
+                Alert.alert('Focus Complete!', 'Great work! Time for a break.', [{ text: 'OK' }]);
+                setPhase('break'); 
+                return breakLenSec; 
+              }
+              // All sessions complete
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('All Sessions Complete!', `You've completed ${totalSessions} focus session${totalSessions > 1 ? 's' : ''}. Well done!`, [{ text: 'OK' }]);
+              setPhase('idle'); 
+              return workLenSec;
             } else {
-              setPhase('work'); return workLenSec;
+              // Break done, starting next work session
+              Alert.alert('Break Over', 'Ready for the next focus session?', [{ text: 'Let\'s Go!' }]);
+              setPhase('work'); 
+              return workLenSec;
             }
           }
           return prev - 1;
@@ -285,30 +343,49 @@ export default function FocusTab() {
       <TouchableOpacity onPress={() => router.back?.()} style={{ position: 'absolute', left: 16, top: 16, zIndex: 10, padding: 8 }}>
         <Ionicons name="arrow-back" size={22} color="#e7e7ea" />
       </TouchableOpacity>
-      {/* Title pill */}
+      {/* Title bar */}
       <View style={styles.titlePill}>
-        <View style={[styles.titleBox, { backgroundColor: titleColor }]}>
+        <TouchableOpacity 
+          style={[styles.titleBox, { backgroundColor: titleColor }]}
+          activeOpacity={0.9}
+          onPress={() => {
+            if (!editingTitle) {
+              setTitleDraft(title);
+              setEditingTitle(true);
+              setTimeout(() => titleInputRef.current?.focus(), 0);
+            }
+          }}
+        >
           <View style={styles.titleContent}>
             {editingTitle ? (
               <TextInput
                 ref={titleInputRef}
                 style={styles.titleEditInput}
-                placeholder="Task name"
-                placeholderTextColor="#e9dcff"
+                placeholder="What are you focusing on?"
+                placeholderTextColor="rgba(255,255,255,0.6)"
                 value={titleDraft}
                 onChangeText={setTitleDraft}
                 returnKeyType="done"
-                onSubmitEditing={() => { if (titleDraft.trim().length) setTitle(titleDraft.trim()); setEditingTitle(false); }}
+                onSubmitEditing={() => { 
+                  if (titleDraft.trim().length) setTitle(titleDraft.trim()); 
+                  setEditingTitle(false); 
+                }}
+                onBlur={() => {
+                  if (titleDraft.trim().length) setTitle(titleDraft.trim());
+                  setEditingTitle(false);
+                }}
               />
             ) : (
-              <Text style={styles.titleLabel}>Task: <Text style={styles.titleValue}>{title}</Text></Text>
+              <Text style={styles.titleLabel} numberOfLines={1}>
+                {title ? title : <Text style={styles.titlePlaceholder}>Tap to set focus task...</Text>}
+              </Text>
             )}
           </View>
           <View style={styles.titleIcons}>
             <TouchableOpacity
               onPress={() => {
                 if (editingTitle) { setEditingTitle(false); }
-                else { setTitleDraft(''); setEditingTitle(true); setTimeout(() => titleInputRef.current?.focus(), 0); }
+                else { setTitleDraft(title); setEditingTitle(true); setTimeout(() => titleInputRef.current?.focus(), 0); }
               }}
               style={styles.titleIcon}
             >
@@ -326,7 +403,7 @@ export default function FocusTab() {
               <Ionicons name="color-palette-outline" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.centerWrap}>
@@ -381,7 +458,7 @@ export default function FocusTab() {
               <Text style={[styles.ctrlTxt, { color: '#e7e7ea' }]}>Set Timer</Text>
             </TouchableOpacity>
 
-            {/* Middle: Dynamic action(s) */}
+            {/* Middle: Dynamic action(s) - use global controls when synced */}
             {phase === 'idle' && (
               <TouchableOpacity style={[styles.ctrlBtn, { backgroundColor: titleColor }]} onPress={() => { start(); startFocusSession({ title, workMinutes: Math.max(1, Math.floor(workLenSec/60)) }); }}>
                 <Text style={styles.ctrlTxt}>Start to Focus</Text>
@@ -389,14 +466,14 @@ export default function FocusTab() {
             )}
             {phase === 'work' && (
               <>
-                <TouchableOpacity style={[styles.ctrlBtn, { backgroundColor: '#ffb64f' }]} onPress={pause}><Text style={styles.ctrlTxt}>Pause</Text></TouchableOpacity>
-                <TouchableOpacity style={[styles.ctrlBtn, { backgroundColor: '#f87171' }]} onPress={stop}><Text style={styles.ctrlTxt}>Stop</Text></TouchableOpacity>
+                <TouchableOpacity style={[styles.ctrlBtn, { backgroundColor: '#ffb64f' }]} onPress={isSyncedToGlobal ? globalPause : pause}><Text style={styles.ctrlTxt}>Pause</Text></TouchableOpacity>
+                <TouchableOpacity style={[styles.ctrlBtn, { backgroundColor: '#f87171' }]} onPress={() => { if (isSyncedToGlobal) globalStop(); stop(); }}><Text style={styles.ctrlTxt}>Stop</Text></TouchableOpacity>
               </>
             )}
             {phase === 'paused' && (
               <>
-                <TouchableOpacity style={[styles.ctrlBtn, { backgroundColor: '#67c99a' }]} onPress={start}><Text style={styles.ctrlTxt}>Resume</Text></TouchableOpacity>
-                <TouchableOpacity style={[styles.ctrlBtn, { backgroundColor: '#f87171' }]} onPress={stop}><Text style={styles.ctrlTxt}>Stop</Text></TouchableOpacity>
+                <TouchableOpacity style={[styles.ctrlBtn, { backgroundColor: '#67c99a' }]} onPress={isSyncedToGlobal ? globalResume : start}><Text style={styles.ctrlTxt}>Resume</Text></TouchableOpacity>
+                <TouchableOpacity style={[styles.ctrlBtn, { backgroundColor: '#f87171' }]} onPress={() => { if (isSyncedToGlobal) globalStop(); stop(); }}><Text style={styles.ctrlTxt}>Stop</Text></TouchableOpacity>
               </>
             )}
             {phase === 'break' && (
@@ -432,6 +509,8 @@ export default function FocusTab() {
           <Text style={styles.statsText}>Session {Math.max(1, totalSessions - sessionsLeft + (phase==='idle'?0:1))}/{totalSessions} • Focus today: {Math.floor(todayFocusSeconds/60)}m</Text>
         </View>
       </View>
+
+      
 
       {/* Subtasks Bottom Sheet */}
       <Modal transparent visible={subtasksSheetOpen} animationType="slide" onRequestClose={() => setSubtasksSheetOpen(false)}>
@@ -514,7 +593,7 @@ export default function FocusTab() {
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ maxHeight: '80%' }}>
             <View style={styles.sheetContainer}>
               <Text style={styles.sideHeader}>Timer Settings</Text>
-              <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+              <ScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 <Text style={styles.sheetLabel}>Focus time (minutes)</Text>
                 <TextInput 
                   style={[styles.subtaskInput, styles.timerInputField]} 
@@ -522,8 +601,7 @@ export default function FocusTab() {
                   placeholderTextColor="#8e8e93" 
                   value={timeInput} 
                   onChangeText={setTimeInput} 
-                  onFocus={() => setTimeInput('')}
-                  autoFocus 
+                  onFocus={() => { if (timeInput === '25' || timeInput === String(Math.floor(workLenSec/60))) setTimeInput(''); }}
                   keyboardType="number-pad" 
                   autoCapitalize="none" 
                   autoCorrect={false} 
@@ -539,7 +617,7 @@ export default function FocusTab() {
                   placeholderTextColor="#8e8e93" 
                   value={breakInput} 
                   onChangeText={setBreakInput} 
-                  onFocus={() => setBreakInput('')}
+                  onFocus={() => { if (breakInput === '5' || breakInput === String(Math.floor(breakLenSec/60))) setBreakInput(''); }}
                   keyboardType="number-pad" 
                   autoCapitalize="none" 
                   autoCorrect={false} 
@@ -555,18 +633,40 @@ export default function FocusTab() {
                   placeholderTextColor="#8e8e93" 
                   value={sessionsInput} 
                   onChangeText={setSessionsInput} 
-                  onFocus={() => setSessionsInput('')}
+                  onFocus={() => { if (sessionsInput === '1' || sessionsInput === String(totalSessions)) setSessionsInput(''); }}
                   keyboardType="number-pad" 
                   returnKeyType="done"
                 />
+                
+                {/* Repeat Option - inline picker */}
+                <Text style={[styles.sheetLabel, { marginTop: 10 }]}>Repeat</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                  {repeatOptions.map((option) => (
+                    <TouchableOpacity
+                      key={option}
+                      style={[
+                        styles.repeatChip,
+                        repeat === option && styles.repeatChipSelected
+                      ]}
+                      onPress={() => setRepeat(option)}
+                    >
+                      <Text style={[
+                        styles.repeatChipText,
+                        repeat === option && styles.repeatChipTextSelected
+                      ]}>
+                        {option}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </ScrollView>
               
               {/* Always visible Apply button - outside scroll view */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#2e313a' }}>
-                <TouchableOpacity style={[styles.applyBtn, { backgroundColor: '#2e313a' }]} onPress={() => { setTimerSheetOpen(false); setEditingTime(false); }}>
+                <TouchableOpacity style={[styles.applyBtn, { backgroundColor: '#2e313a' }]} onPress={() => { Keyboard.dismiss(); setTimerSheetOpen(false); setEditingTime(false); }}>
                   <Text style={{ color: '#e7e7ea', fontWeight: '700' }}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.applyBtn} onPress={() => { commitTimerSettings(); setTimerSheetOpen(false); setEditingTime(false); }}>
+                <TouchableOpacity style={styles.applyBtn} onPress={() => { Keyboard.dismiss(); commitTimerSettings(); setTimerSheetOpen(false); setEditingTime(false); }}>
                   <Text style={{ color: '#0b0b0c', fontWeight: '700' }}>Apply</Text>
                 </TouchableOpacity>
               </View>
@@ -574,6 +674,7 @@ export default function FocusTab() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+
     </SafeAreaView>
   );
 }
@@ -581,12 +682,12 @@ export default function FocusTab() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f8ff', padding: 16 },
   bgImage: { resizeMode: 'cover' },
-  titlePill: { alignItems: 'center', marginBottom: 24, marginTop: 8 },
-  titleBox: { width: '90%', backgroundColor: '#5b47a8', borderRadius: 20, paddingHorizontal: 18, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  titleContent: { flex: 1 },
-  titleLabel: { color: '#fff', fontSize: 18, fontWeight: '600' },
-  titleValue: { color: '#f1eaff', fontWeight: '700' },
-  titleEditInput: { color: '#fff', fontSize: 18, minWidth: 120 },
+  titlePill: { alignItems: 'center', marginBottom: 16, marginTop: 40, paddingHorizontal: 16 },
+  titleBox: { width: '100%', backgroundColor: '#5b47a8', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  titleContent: { flex: 1, marginRight: 8 },
+  titleLabel: { color: '#fff', fontSize: 17, fontWeight: '600' },
+  titlePlaceholder: { color: 'rgba(255,255,255,0.5)', fontStyle: 'italic', fontWeight: '400' },
+  titleEditInput: { color: '#fff', fontSize: 17, minWidth: 120 },
   titleIcons: { flexDirection: 'row', alignItems: 'center' },
   titleIcon: { marginLeft: 12, padding: 4 },
   mainRow: { flex: 1, flexDirection: 'row', gap: 16, alignItems: 'center', justifyContent: 'center' },
@@ -618,4 +719,26 @@ const styles = StyleSheet.create({
   colorWheel: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
   colorSwatch: { width: 40, height: 40, borderRadius: 20, margin: 4 },
   selectedSwatch: { borderWidth: 3, borderColor: '#fff', transform: [{ scale: 1.1 }] },
+  repeatChip: { 
+    paddingHorizontal: 14, 
+    paddingVertical: 10, 
+    borderRadius: 20, 
+    backgroundColor: '#1a1b21', 
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#2e313a',
+  },
+  repeatChipSelected: { 
+    backgroundColor: 'rgba(103, 201, 154, 0.2)', 
+    borderColor: '#67c99a',
+  },
+  repeatChipText: { 
+    color: '#8e8e93', 
+    fontSize: 14, 
+    fontWeight: '500',
+  },
+  repeatChipTextSelected: { 
+    color: '#67c99a', 
+    fontWeight: '600',
+  },
 });

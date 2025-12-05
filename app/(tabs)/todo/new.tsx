@@ -3,6 +3,7 @@ import { useListContext } from '@/context/ListContext';
 import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Directory, File, Paths } from 'expo-file-system';
+import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useRef, useState } from 'react';
@@ -143,6 +144,9 @@ export default function NewReminder() {
 
   const save = () => {
     if (!title.trim()) return;
+    
+    // Haptic feedback when saving
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     
     if (isEditing && existingTodo) {
       // Update existing todo
@@ -544,7 +548,37 @@ export default function NewReminder() {
 
         {/* Details Row */}
         <TouchableOpacity style={styles.detailRow} onPress={() => navigateToDetails()}>
-          <Text style={styles.detailText}>Details</Text>
+          <View style={styles.detailsRowContent}>
+            <Text style={styles.detailText}>Details</Text>
+            {/* Show summary of configured details */}
+            {(repeat !== 'Never' || earlyReminder !== 'None' || location || url) && (
+              <View style={styles.detailsSummary}>
+                {repeat !== 'Never' && (
+                  <View style={styles.detailChip}>
+                    <Ionicons name="repeat" size={12} color="#007AFF" />
+                    <Text style={styles.detailChipText}>{repeat}</Text>
+                  </View>
+                )}
+                {earlyReminder !== 'None' && (
+                  <View style={styles.detailChip}>
+                    <Ionicons name="notifications-outline" size={12} color="#007AFF" />
+                    <Text style={styles.detailChipText}>{earlyReminder.replace(' before', '')}</Text>
+                  </View>
+                )}
+                {location && (
+                  <View style={styles.detailChip}>
+                    <Ionicons name="location-outline" size={12} color="#007AFF" />
+                    <Text style={styles.detailChipText} numberOfLines={1}>{location.split(',')[0]}</Text>
+                  </View>
+                )}
+                {url && (
+                  <View style={styles.detailChip}>
+                    <Ionicons name="link-outline" size={12} color="#007AFF" />
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
           <Ionicons name="chevron-forward" size={20} color="#8e8e93" />
         </TouchableOpacity>
 
@@ -579,34 +613,7 @@ export default function NewReminder() {
         onBreakUnitChange={setBreakUnit}
       />
 
-      {/* Keyboard Accessories */}
-      <View style={styles.keyboardAccessories}>
-        <TouchableOpacity style={styles.accessoryButton} onPress={showDatePicker}>
-          <Ionicons name="calendar" size={20} color={selectedDate ? "#007AFF" : "#8e8e93"} />
-          <Text style={[styles.accessoryText, selectedDate && { color: "#007AFF" }]}>
-            {selectedDate ? 'Date Set' : 'Date'}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.accessoryButton} onPress={showPriorityOptions}>
-          <Ionicons name="flag" size={20} color={priority === 'high' ? "#FF3B30" : priority === 'medium' ? "#FF9500" : "#8e8e93"} />
-          <Text style={[styles.accessoryText, priority !== 'medium' && { color: priority === 'high' ? "#FF3B30" : "#8e8e93" }]}>
-            {priority === 'high' ? 'High' : priority === 'medium' ? 'Priority' : 'Low'}
-          </Text>
-        </TouchableOpacity>
-        {/* Tags accessory removed for simpler UX */}
-        <TouchableOpacity style={styles.accessoryButton} onPress={() => navigateToDetails({ openLocation: true })}>
-          <Ionicons name="location" size={20} color="#007AFF" />
-          <Text style={styles.accessoryText}>Location</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.accessoryButton} onPress={showPhotoOptions}>
-          <Ionicons name="camera" size={20} color="#34C759" />
-          <Text style={styles.accessoryText}>Photo</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.accessoryButton} onPress={navigateToListPicker}>
-          <Ionicons name="list" size={20} color="#AF52DE" />
-          <Text style={styles.accessoryText}>Lists</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Keyboard Accessories removed - all features available through Details page */}
 
       {/* Inline Date Chips removed per request */}
 
@@ -643,6 +650,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: 100, // Add padding to prevent Pomodoro section from being covered by bottom tab bar
   },
   header: {
     flexDirection: 'row',
@@ -705,10 +713,35 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 8,
   },
+  detailsRowContent: {
+    flex: 1,
+    marginRight: 8,
+  },
   detailText: {
     color: '#fff',
     fontSize: 17,
     fontWeight: '400',
+  },
+  detailsSummary: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  detailChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  detailChipText: {
+    color: '#007AFF',
+    fontSize: 12,
+    fontWeight: '500',
+    maxWidth: 100,
   },
   listInfo: {
     flexDirection: 'row',

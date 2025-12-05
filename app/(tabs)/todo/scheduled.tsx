@@ -1,10 +1,33 @@
 import SmartListScreen from '@/components/SmartListScreen';
+import { shouldTaskAppearOnDate, isTaskCompletedForDate } from '@/utils/recurring';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ScheduledTodosScreen() {
+  // Create stable today reference
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+  
+  // Filter function that uses recurring logic
+  const filterToday = useMemo(() => (todo: any) => {
+    // Check if task should appear today (including recurring)
+    if (!shouldTaskAppearOnDate(todo, today)) return false;
+    
+    // For recurring tasks, check if completed for today specifically
+    if (todo.repeat && todo.repeat !== 'Never') {
+      return !isTaskCompletedForDate(todo, today);
+    }
+    
+    // For non-recurring tasks, check done flag
+    return !todo.done;
+  }, [today]);
+  
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
@@ -17,7 +40,7 @@ export default function ScheduledTodosScreen() {
       
       <SmartListScreen
         title=""
-        filter={todo => !!todo.dueDate && !todo.done && new Date(todo.dueDate).toDateString() === new Date().toDateString()}
+        filter={filterToday}
       />
     </SafeAreaView>
   );

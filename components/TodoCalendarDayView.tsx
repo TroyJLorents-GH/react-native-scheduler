@@ -4,6 +4,7 @@ import moment from 'moment';
 import { useMemo, useRef, useState } from 'react';
 import { Animated, PanResponder, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Todo, useTodoContext } from '../context/TodoContext';
+import { shouldTaskAppearOnDate, isTaskCompletedForDate } from '../utils/recurring';
 
 type Props = {
   todos: Todo[];
@@ -21,19 +22,26 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
   const selectedDayKey = moment(date).format('YYYY-MM-DD');
 
   const dayTodos = useMemo(() => {
-    const selected = moment(date);
-    const isPastDay = selected.isBefore(moment().startOf('day'), 'day');
+    const selected = new Date(date);
+    selected.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const isPastDay = selected < today;
+    
     const filtered = [...todos]
       .filter(t => {
-        if (!t.dueDate) return false;
-        const due = moment(t.dueDate);
-        // Only show tasks whose due date is the selected date; no rollover
-        if (!due.isSame(selected, 'day')) return false;
+        // Use recurring logic to check if task should appear on this date
+        if (!shouldTaskAppearOnDate(t, selected)) return false;
         // Hide completed items when viewing past days
         if (isPastDay && t.done) return false;
         return true;
       })
-      .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
+      .sort((a, b) => {
+        // Sort by due time if available
+        const aTime = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+        const bTime = b.dueDate ? new Date(b.dueDate).getTime() : 0;
+        return aTime - bTime;
+      });
     return filtered;
   }, [todos, selectedDayKey, date]);
 
@@ -178,12 +186,17 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
                       {...blockPan.panHandlers}
                     >
                       <View style={styles.blockHeader}>
-                        <Text style={styles.blockTitle} numberOfLines={2}>
-                          {todo.text}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                          <Text style={styles.blockTitle} numberOfLines={2}>
+                            {todo.text}
+                          </Text>
+                          {todo.repeat && todo.repeat !== 'Never' && (
+                            <Ionicons name="repeat" size={14} color="#007AFF" />
+                          )}
+                        </View>
                         <View style={styles.blockActions}>
                           <TouchableOpacity 
-                            onPress={() => router.push({ pathname: '/task-details', params: { id: todo.id, from: '/(tabs)/schedule' } })}
+                            onPress={() => router.push({ pathname: '/task-details', params: { id: todo.id, from: '/(tabs)/schedule', forDate: selectedDayKey } })}
                             style={styles.expandButton}
                           >
                             <Ionicons 
@@ -197,7 +210,7 @@ export default function TodoCalendarDayView({ todos, date, onDateChange }: Props
                               if (todo.listId === 'focus') {
                                 router.push({ pathname: '/(tabs)/today', params: { focusTaskId: todo.id } });
                               } else {
-                                router.push({ pathname: '/task-details', params: { id: todo.id, autostart: '1', from: '/(tabs)/schedule' } });
+                                router.push({ pathname: '/task-details', params: { id: todo.id, autostart: '1', from: '/(tabs)/schedule', forDate: selectedDayKey } });
                               }
                             }}
                             style={styles.playButton}

@@ -1,5 +1,6 @@
 import { useListContext } from '@/context/ListContext';
 import { useTodoContext } from '@/context/TodoContext';
+import { shouldTaskAppearOnDate, isTaskCompletedForDate } from '@/utils/recurring';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useMemo } from 'react';
@@ -13,29 +14,55 @@ export default function ListItems() {
   const [showCompleted, setShowCompleted] = React.useState(false);
   const [completedSheetOpen, setCompletedSheetOpen] = React.useState(false);
 
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
   const list = lists.find(l => l.id === listId);
+  
+  // Show all tasks in the list (not filtered by today for list view)
   const listTodos = useMemo(() => {
     const filtered = todos.filter(t => t.listId === listId);
-    return showCompleted ? filtered : filtered.filter(t => !t.done);
+    
+    if (showCompleted) return filtered;
+    
+    // Filter out completed tasks
+    // For list view, show all tasks regardless of schedule
+    // Recurring tasks are only hidden if globally done (which shouldn't happen)
+    return filtered.filter(t => !t.done);
   }, [todos, listId, showCompleted]);
 
   const completedForList = useMemo(() => {
     return todos
-      .filter(t => t.listId === listId && t.done)
+      .filter(t => {
+        if (t.listId !== listId) return false;
+        if (t.repeat && t.repeat !== 'Never') {
+          return isTaskCompletedForDate(t, today);
+        }
+        return t.done;
+      })
       .sort((a: any, b: any) => {
         const at = a.completedAt ? new Date(a.completedAt).getTime() : 0;
         const bt = b.completedAt ? new Date(b.completedAt).getTime() : 0;
         return bt - at;
       });
-  }, [todos, listId]);
+  }, [todos, listId, today]);
 
-  const renderTodo = ({ item }: { item: any }) => (
+  const renderTodo = ({ item }: { item: any }) => {
+    // Check completion status for recurring tasks
+    const isCompleted = item.repeat && item.repeat !== 'Never'
+      ? isTaskCompletedForDate(item, today)
+      : item.done;
+      
+    return (
     <View style={styles.todoRow}>
-      <TouchableOpacity onPress={() => toggleTodo(item.id)} style={styles.checkbox}>
+      <TouchableOpacity onPress={() => toggleTodo(item.id, today)} style={styles.checkbox}>
         <Ionicons 
-          name={item.done ? 'checkmark-circle' : 'ellipse-outline'} 
+          name={isCompleted ? 'checkmark-circle' : 'ellipse-outline'} 
           size={24} 
-          color={item.done ? '#67c99a' : '#bbb'} 
+          color={isCompleted ? '#67c99a' : '#bbb'} 
         />
       </TouchableOpacity>
       {item.pomodoro?.enabled && (
@@ -103,7 +130,8 @@ export default function ListItems() {
         )}
       </TouchableOpacity>
     </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>

@@ -1,5 +1,5 @@
 import { appendFocusLog } from '@/utils/stats';
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useTodoContext } from './TodoContext';
 
 type SessionSource = 'task' | 'focus';
@@ -30,10 +30,18 @@ export const FocusProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [session, setSession] = useState<ActiveSession | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const { todos } = useTodoContext();
+  // Keep todos ref current for stop() without causing re-renders
+  const todosRef = useRef(todos);
+  todosRef.current = todos;
 
-  const clear = () => { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; } };
+  const clear = useCallback(() => { 
+    if (intervalRef.current) { 
+      clearInterval(intervalRef.current); 
+      intervalRef.current = null; 
+    } 
+  }, []);
 
-  const tick = () => {
+  const tick = useCallback(() => {
     setSession(prev => {
       if (!prev) return prev;
       if (prev.phase !== 'work' && prev.phase !== 'break') return prev;
@@ -47,7 +55,7 @@ export const FocusProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       return { ...prev, remainingSec: next };
     });
-  };
+  }, []);
 
   useEffect(() => {
     clear();
@@ -55,32 +63,48 @@ export const FocusProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       intervalRef.current = setInterval(tick, 1000);
     }
     return clear;
-  }, [session?.phase]);
+  }, [session?.phase, clear, tick]);
 
-  const start = (id: string, title: string, workMinutes: number, source: SessionSource) => {
+  const startTaskSession = useCallback(({ id, title, workMinutes }: { id: string; title: string; workMinutes: number }) => {
     const totalSec = Math.max(60, Math.floor(workMinutes * 60));
-    setSession({ id, title, source, totalSec, remainingSec: totalSec, phase: 'work' });
-  };
+    setSession({ id, title, source: 'task', totalSec, remainingSec: totalSec, phase: 'work' });
+  }, []);
 
-  const value = useMemo<FocusContextValue>(() => ({
+  const startFocusSession = useCallback(({ title, workMinutes }: { title: string; workMinutes: number }) => {
+    const totalSec = Math.max(60, Math.floor(workMinutes * 60));
+    setSession({ id: `focus-${Date.now()}`, title, source: 'focus', totalSec, remainingSec: totalSec, phase: 'work' });
+  }, []);
+
+  const pause = useCallback(() => {
+    setSession(prev => prev ? { ...prev, phase: 'paused' } : prev);
+  }, []);
+
+  const resume = useCallback(() => {
+    setSession(prev => prev ? { ...prev, phase: 'work' } : prev);
+  }, []);
+
+  const stop = useCallback(() => {
+    setSession(prev => {
+      if (prev) {
+        const endedAt = Date.now();
+        const startedAt = endedAt - (prev.totalSec - prev.remainingSec) * 1000;
+        const t = todosRef.current.find(x => x.id === prev.id);
+        appendFocusLog({ id: prev.id, title: prev.title, source: prev.source, startedAt, endedAt, workSec: prev.totalSec - prev.remainingSec, taskId: t?.id, listId: t?.listId });
+      }
+      return null;
+    });
+  }, []);
+
+  // Memoize context value with stable function references
+  const value: FocusContextValue = {
     session,
-    startTaskSession: ({ id, title, workMinutes }) => start(id, title, workMinutes, 'task'),
-    startFocusSession: ({ title, workMinutes }) => start(`focus-${Date.now()}`, title, workMinutes, 'focus'),
-    pause: () => setSession(prev => prev ? { ...prev, phase: 'paused' } : prev),
-    resume: () => setSession(prev => prev ? { ...prev, phase: 'work' } : prev),
-    stop: () => {
-      setSession(prev => {
-        if (prev) {
-          const endedAt = Date.now();
-          const startedAt = endedAt - (prev.totalSec - prev.remainingSec) * 1000;
-          const t = todos.find(x => x.id === prev.id);
-          appendFocusLog({ id: prev.id, title: prev.title, source: prev.source, startedAt, endedAt, workSec: prev.totalSec - prev.remainingSec, taskId: t?.id, listId: t?.listId });
-        }
-        return null;
-      });
-    },
-    tickOne: () => tick(),
-  }), [session]);
+    startTaskSession,
+    startFocusSession,
+    pause,
+    resume,
+    stop,
+    tickOne: tick,
+  };
 
   return (
     <FocusContext.Provider value={value}>{children}</FocusContext.Provider>

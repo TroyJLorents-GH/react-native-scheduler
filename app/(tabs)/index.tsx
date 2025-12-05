@@ -2,18 +2,20 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import moment from 'moment';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import DraggableFlatList from 'react-native-draggable-flatlist';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
+import { useFocusContext } from '../../context/FocusContext';
 import { useListContext } from '../../context/ListContext';
 import { Todo, useTodoContext } from '../../context/TodoContext';
+import { getTasksForDate, getTasksDueTomorrow, isTaskOverdue, isTaskCompletedForDate, shouldTaskAppearOnDate } from '../../utils/recurring';
 import { getFocusMinutesSince } from '../../utils/stats';
 
 export default function HomeDashboard() {
   const { todos, toggleTodo } = useTodoContext();
+  const { startTaskSession } = useFocusContext();
   const { lists } = useListContext();
   // const { user, isAuthenticated, isLoading: authLoading, signIn, signOut } = useGoogleAuth();
   
@@ -42,25 +44,62 @@ export default function HomeDashboard() {
   useEffect(() => { loadUsername(); }, [loadUsername]);
   useFocusEffect(useCallback(() => { loadUsername(); }, [loadUsername]));
 
-  const today = moment();
-  const startOfToday = today.clone().startOf('day');
-  // Today's tasks (today only)
-  const todaysTodos = todos.filter(todo => {
-    if (todo.done) return false;
-    if (!todo.dueDate) return false;
-    const due = moment(todo.dueDate);
-    return due.isSame(today, 'day');
-  });
-  const tomorrow = today.clone().add(1, 'day');
-  const tomorrowTodos = todos.filter(t => !t.done && t.dueDate && moment(t.dueDate).isSame(tomorrow, 'day'));
-  const overdueTodos = todos.filter(t => !t.done && t.dueDate && moment(t.dueDate).isBefore(startOfToday, 'day'));
-  const upcomingTodos = todos.filter(t => !t.done && t.dueDate && moment(t.dueDate).isAfter(tomorrow, 'day'));
-  // Daily Goals: only tasks due today (no overdue rollovers)
-  const todaysPoolAll = todos.filter(todo => {
-    if (!todo.dueDate) return false;
-    const due = moment(todo.dueDate);
-    return due.isSame(today, 'day');
-  });
+  // Create stable date references using useMemo
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+  
+  const tomorrow = useMemo(() => {
+    const d = new Date(today);
+    d.setDate(d.getDate() + 1);
+    return d;
+  }, [today]);
+  
+  // Today's tasks - using recurring logic to include tasks that repeat today
+  const todaysTodos = useMemo(() => getTasksForDate(todos, today), [todos, today]);
+  
+  // Tomorrow's tasks - using recurring logic
+  const tomorrowTodos = useMemo(() => getTasksDueTomorrow(todos), [todos]);
+  
+  // Overdue tasks - only non-recurring tasks that are past due
+  const overdueTodos = useMemo(() => todos.filter(t => isTaskOverdue(t)), [todos]);
+  
+  // Upcoming tasks - tasks with due dates after tomorrow (non-recurring only for this view)
+  const upcomingTodos = useMemo(() => todos.filter(t => {
+    if (t.done || !t.dueDate) return false;
+    if (t.repeat && t.repeat !== 'Never') return false; // Recurring tasks show on their scheduled days
+    const dueDate = new Date(t.dueDate);
+    dueDate.setHours(0, 0, 0, 0);
+    return dueDate > tomorrow;
+  }), [todos, tomorrow]);
+  
+  // Daily Goals: only tasks due today (no overdue rollovers) - includes recurring
+  const todaysPoolAll = useMemo(() => {
+    // Get all tasks that should appear today (including recurring)
+    const tasksForToday = getTasksForDate(todos, today);
+    // Also include completed recurring tasks for today
+    const completedRecurringToday = todos.filter(todo => {
+      if (!todo.repeat || todo.repeat === 'Never') return false;
+      return isTaskCompletedForDate(todo, today) && shouldTaskAppearOnDate(todo, today);
+    });
+    // Also include completed non-recurring tasks that were due today
+    const completedNonRecurringToday = todos.filter(todo => {
+      if (todo.repeat && todo.repeat !== 'Never') return false;
+      if (!todo.done || !todo.dueDate) return false;
+      const dueDate = new Date(todo.dueDate);
+      dueDate.setHours(0, 0, 0, 0);
+      return dueDate.getTime() === today.getTime();
+    });
+    // Combine and deduplicate
+    const allIds = new Set([
+      ...tasksForToday.map(t => t.id), 
+      ...completedRecurringToday.map(t => t.id),
+      ...completedNonRecurringToday.map(t => t.id)
+    ]);
+    return todos.filter(t => allIds.has(t.id));
+  }, [todos, today]);
   const completedCount = todaysPoolAll.filter(t => t.done).length;
   const totalCount = todaysPoolAll.length;
   const completionPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
@@ -76,7 +115,7 @@ export default function HomeDashboard() {
   const [reorderMode, setReorderMode] = useState(false);
   const [manualOrderIds, setManualOrderIds] = useState<string[] | null>(null);
 
-  const orderKey = `home_order_${today.format('YYYY-MM-DD')}`;
+  const orderKey = `home_order_${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   useEffect(() => {
     (async () => {
@@ -155,7 +194,13 @@ export default function HomeDashboard() {
       {/* Account Info moved to Settings */}
 
       {/* Daily Goals */}
-      <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={() => router.push('/todays-tasks')}>
+      <TouchableOpacity 
+        style={styles.card} 
+        activeOpacity={0.85} 
+        onPress={() => router.push('/todays-tasks')}
+        accessibilityLabel={`Daily Goals: ${completionPct}% complete, ${completedCount} of ${totalCount} tasks done`}
+        accessibilityRole="button"
+      >
         <Text style={styles.sectionTitle}>
           <MaterialCommunityIcons name="target" size={21} color="#ff9a62" />  Daily Goals
         </Text>
@@ -241,25 +286,51 @@ export default function HomeDashboard() {
                     router.push({ pathname: '/task-details', params: { id: item.id } });
                   }
                 }}
+                accessibilityLabel={`Task: ${item.text}${item.done ? ', completed' : ''}${item.priority ? `, ${item.priority} priority` : ''}`}
+                accessibilityRole="button"
+                accessibilityHint="Double tap to view details, long press to reorder"
               >
-                <TouchableOpacity onPress={() => toggleTodo(item.id)} style={{ marginRight: 8, marginTop: 2 }}>
-                  <Ionicons name={item.done ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={item.done ? '#67c99a' : '#bbb'} />
-                </TouchableOpacity>
-                <View style={styles.todoContent}>
-                  <Text style={[styles.todoText, item.done && { textDecorationLine: 'line-through', color: '#aaa' }]}>
-                    {item.text}
-                  </Text>
-                  <Text style={styles.todoNotes}>
-                    {lists.find(l => l.id === item.listId)?.name || 'Reminders'}
-              </Text>
-            </View>
-                <TouchableOpacity onPress={() => {
-                  if (item.listId === 'focus') {
-                    router.push({ pathname: '/(tabs)/today', params: { focusTaskId: item.id } });
-                  } else {
-                    router.push({ pathname: '/task-details', params: { id: item.id, autostart: '1' } });
-                  }
-                }}>
+                {(() => {
+                // Check completion status for today specifically (for recurring tasks)
+                const isCompletedToday = item.repeat && item.repeat !== 'Never'
+                  ? isTaskCompletedForDate(item, today)
+                  : item.done;
+                return (
+                  <>
+                    <TouchableOpacity 
+                      onPress={() => toggleTodo(item.id, today)} 
+                      style={{ marginRight: 8, marginTop: 2 }}
+                      accessibilityLabel={isCompletedToday ? 'Mark task as incomplete' : 'Mark task as complete'}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: isCompletedToday }}
+                    >
+                      <Ionicons name={isCompletedToday ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={isCompletedToday ? '#67c99a' : '#bbb'} />
+                    </TouchableOpacity>
+                    <View style={styles.todoContent}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={[styles.todoText, isCompletedToday && { textDecorationLine: 'line-through', color: '#aaa' }]}>
+                          {item.text}
+                        </Text>
+                        {item.repeat && item.repeat !== 'Never' && (
+                          <Ionicons name="repeat" size={14} color="#007AFF" />
+                        )}
+                      </View>
+                      <Text style={styles.todoNotes}>
+                        {lists.find(l => l.id === item.listId)?.name || 'Reminders'}
+                      </Text>
+                    </View>
+                  </>
+                );
+              })()}
+                <TouchableOpacity 
+                  onPress={() => {
+                    // Start focus session immediately
+                    const workMinutes = item.pomodoro?.workTime || 25;
+                    startTaskSession({ id: item.id, title: item.text, workMinutes });
+                  }}
+                  accessibilityLabel={`Start focus session for ${item.text}`}
+                  accessibilityRole="button"
+                >
                   <Ionicons name={'play-circle'} size={26} color={'#67c99a'} style={{ marginLeft: 9 }} />
                 </TouchableOpacity>
               </TouchableOpacity>
@@ -293,7 +364,7 @@ export default function HomeDashboard() {
         {showTomorrow && (
           tomorrowTodos.length === 0 ? <Text style={styles.emptyText}>No tasks for tomorrow.</Text> :
           tomorrowTodos.map(item => (
-            <HomeRow key={item.id} item={item} listsName={lists.find(l=>l.id===item.listId)?.name} onToggle={() => toggleTodo(item.id)} />
+            <HomeRow key={item.id} item={item} listsName={lists.find(l=>l.id===item.listId)?.name} onToggle={() => toggleTodo(item.id, tomorrow)} forDate={tomorrow} />
           ))
         )}
       </View>
@@ -539,7 +610,12 @@ const styles = StyleSheet.create({
   metricsText: { color: '#7a7c96', fontWeight: '600' },
 });
 
-function HomeRow({ item, listsName, onToggle }: { item: Todo; listsName?: string; onToggle: () => void }) {
+function HomeRow({ item, listsName, onToggle, forDate }: { item: Todo; listsName?: string; onToggle: () => void; forDate?: Date }) {
+  // For recurring tasks, check completion for the specific date
+  const isCompleted = item.repeat && item.repeat !== 'Never' && forDate
+    ? isTaskCompletedForDate(item, forDate)
+    : item.done;
+    
   return (
     <TouchableOpacity 
       style={{
@@ -555,10 +631,15 @@ function HomeRow({ item, listsName, onToggle }: { item: Todo; listsName?: string
       onPress={() => router.push({ pathname: '/task-details', params: { id: item.id } })}
     >
       <TouchableOpacity onPress={onToggle} style={{ marginRight: 8, marginTop: 2 }}>
-        <Ionicons name={item.done ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={item.done ? '#67c99a' : '#bbb'} />
+        <Ionicons name={isCompleted ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={isCompleted ? '#67c99a' : '#bbb'} />
       </TouchableOpacity>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 16, color: '#222', marginBottom: 2 }} numberOfLines={1}>{item.text}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={[{ fontSize: 16, color: '#222', marginBottom: 2 }, isCompleted && { textDecorationLine: 'line-through', color: '#aaa' }]} numberOfLines={1}>{item.text}</Text>
+          {item.repeat && item.repeat !== 'Never' && (
+            <Ionicons name="repeat" size={14} color="#007AFF" />
+          )}
+        </View>
         <Text style={{ fontSize: 14, color: '#a4a4a4', fontStyle: 'italic' }} numberOfLines={1}>{listsName || 'Reminders'}</Text>
       </View>
       <Ionicons name={'play-circle'} size={26} color={'#67c99a'} style={{ marginLeft: 9 }} />

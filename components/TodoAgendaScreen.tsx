@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import { Todo, useTodoContext } from '../context/TodoContext';
+import { shouldTaskAppearOnDate, isTaskCompletedForDate } from '../utils/recurring';
 
 type Props = {
   todos: Todo[];
@@ -12,29 +13,50 @@ type Props = {
 
 function getSectionedTodos(todos: Todo[]) {
   const grouped: { [date: string]: Todo[] } = {};
-  const processedIds = new Set<string>();
-  const today = moment().startOf('day');
-  const cutoff = today.clone().subtract(7, 'days');
-
-  todos.forEach(todo => {
-    if (!todo.dueDate || processedIds.has(todo.id)) return;
-    if (todo.done) return; // Hide completed items from vertical view
-    processedIds.add(todo.id);
-
-    const due = moment(todo.dueDate);
-    // Only include past 7 days for overdue items
-    if (due.isBefore(cutoff, 'day')) return;
-    // No rollover: always keep tasks on their original due dates
-    const dateKey = due.format('YYYY-MM-DD');
-    if (!grouped[dateKey]) grouped[dateKey] = [];
-    grouped[dateKey].push(todo);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // Show 7 days back and 30 days forward
+  const startDate = new Date(today);
+  startDate.setDate(startDate.getDate() - 7);
+  const endDate = new Date(today);
+  endDate.setDate(endDate.getDate() + 30);
+  
+  // Generate all dates in range
+  const currentDate = new Date(startDate);
+  while (currentDate <= endDate) {
+    const dateKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+    grouped[dateKey] = [];
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  // For each date, find all tasks that should appear (including recurring)
+  Object.keys(grouped).forEach(dateKey => {
+    const [year, month, day] = dateKey.split('-').map(Number);
+    const checkDate = new Date(year, month - 1, day);
+    checkDate.setHours(0, 0, 0, 0);
+    
+    const isPastDay = checkDate < today;
+    
+    todos.forEach(todo => {
+      // Skip completed items
+      if (todo.done) return;
+      
+      // Check if task should appear on this date (including recurring logic)
+      if (shouldTaskAppearOnDate(todo, checkDate)) {
+        // Avoid duplicates
+        if (!grouped[dateKey].some(t => t.id === todo.id)) {
+          grouped[dateKey].push(todo);
+        }
+      }
+    });
   });
 
-  // Ensure today section exists, even if empty, so we can focus it at top
-  const todayKey = today.format('YYYY-MM-DD');
-  if (!grouped[todayKey]) grouped[todayKey] = [];
-
+  // Remove empty past days (keep today even if empty)
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  
   return Object.entries(grouped)
+    .filter(([date, dayTodos]) => dayTodos.length > 0 || date === todayKey || date >= todayKey)
     .sort(([a], [b]) => (a < b ? -1 : 1))
     .map(([date, dayTodos]) => ({
       key: date,
@@ -50,7 +72,7 @@ function getSectionedTodos(todos: Todo[]) {
 
 type Row = 
   | { type: 'header'; key: string; title: string; dayLabel: { name: string; num: string; month: string } }
-  | { type: 'item'; todo: Todo };
+  | { type: 'item'; todo: Todo; dateKey: string };
 
 export default function TodoAgendaScreen({ todos }: Props) {
   const { toggleTodo, updateTodo } = useTodoContext();
@@ -70,7 +92,8 @@ export default function TodoAgendaScreen({ todos }: Props) {
         title: sec.title,
         dayLabel: { name: sec.day.format('ddd').toUpperCase(), num: sec.day.format('D'), month: sec.day.format('MMM') },
       });
-      sec.data.forEach(t => rows.push({ type: 'item', todo: t }));
+      // Include dateKey to make recurring task keys unique per date
+      sec.data.forEach(t => rows.push({ type: 'item', todo: t, dateKey: sec.key }));
     });
     return rows;
   }, [sections]);
@@ -106,6 +129,14 @@ export default function TodoAgendaScreen({ todos }: Props) {
       );
     }
     const todo = item.todo;
+    const dateKey = item.dateKey;
+    
+    // For recurring tasks, check completion for this specific date
+    const rowDate = new Date(dateKey);
+    const isCompletedForThisDate = todo.repeat && todo.repeat !== 'Never' 
+      ? isTaskCompletedForDate(todo, rowDate)
+      : todo.done;
+    
     return (
       <TouchableOpacity
         style={[styles.itemCard, isActive && { opacity: 0.9 }]}
@@ -115,15 +146,20 @@ export default function TodoAgendaScreen({ todos }: Props) {
           if (todo.listId === 'focus') {
             router.push({ pathname: '/(tabs)/today', params: { focusTaskId: todo.id } });
           } else {
-            router.push({ pathname: '/task-details', params: { id: todo.id, from: '/(tabs)/schedule' } });
+            router.push({ pathname: '/task-details', params: { id: todo.id, from: '/(tabs)/schedule', forDate: dateKey } });
           }
         }}
       >
-        <View style={[styles.colorDot, { backgroundColor: todo.done ? '#67c99a' : '#ffb86b' }]} />
+        <View style={[styles.colorDot, { backgroundColor: isCompletedForThisDate ? '#67c99a' : '#ffb86b' }]} />
         <View style={{ flex: 1 }}>
-          <Text style={[styles.itemTitle, todo.done && { textDecorationLine: 'line-through', color: '#8e8e93' }]}>
-            {todo.text}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={[styles.itemTitle, isCompletedForThisDate && { textDecorationLine: 'line-through', color: '#8e8e93' }]}>
+              {todo.text}
+            </Text>
+            {todo.repeat && todo.repeat !== 'Never' && (
+              <Ionicons name="repeat" size={14} color="#007AFF" />
+            )}
+          </View>
           <Text style={styles.itemMeta}>
             {todo.dueDate ? moment(todo.dueDate).format('h:mm A') : ''}
           </Text>
@@ -136,16 +172,16 @@ export default function TodoAgendaScreen({ todos }: Props) {
             if (todo.listId === 'focus') {
               router.push({ pathname: '/(tabs)/today', params: { focusTaskId: todo.id } });
             } else {
-              router.push({ pathname: '/task-details', params: { id: todo.id, autostart: '1', from: '/(tabs)/schedule' } });
+              router.push({ pathname: '/task-details', params: { id: todo.id, autostart: '1', from: '/(tabs)/schedule', forDate: dateKey } });
             }
           }} style={{ marginRight: 10 }}>
             <Ionicons name="play-circle" size={22} color="#67c99a" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => toggleTodo(todo.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity onPress={() => toggleTodo(todo.id, rowDate)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons
-              name={todo.done ? 'checkmark-circle' : 'ellipse-outline'}
+              name={isCompletedForThisDate ? 'checkmark-circle' : 'ellipse-outline'}
               size={22}
-              color={todo.done ? '#67c99a' : '#bbb'}
+              color={isCompletedForThisDate ? '#67c99a' : '#bbb'}
             />
           </TouchableOpacity>
         </View>
@@ -181,7 +217,7 @@ export default function TodoAgendaScreen({ todos }: Props) {
     <DraggableFlatList<Row>
       ref={flatRef}
       data={flatData}
-      keyExtractor={(item, index) => item.type === 'header' ? `h-${item.key}` : `i-${item.todo.id}`}
+      keyExtractor={(item, index) => item.type === 'header' ? `h-${item.key}` : `i-${item.dateKey}-${item.todo.id}`}
       renderItem={renderRow}
       activationDistance={12}
       onDragEnd={onDragEnd}
