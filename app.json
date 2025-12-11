@@ -37,10 +37,18 @@
         }
       ],
       "expo-sqlite",
-      "expo-maps"
+      "expo-maps",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "187f8947-b288-4522-9981-8a467a28378a"
+      }
+    },
+    "owner": "tlorents"
   }
 }

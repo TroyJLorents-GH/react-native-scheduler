@@ -219,7 +219,7 @@ export default function NewReminder() {
     
     // Navigate back to task details if editing, otherwise to list items
     if (isEditing) {
-      router.push({ pathname: '/task-details', params: { id: editId } });
+      router.back();
     } else {
       router.push({
         pathname: '/todo/list-items',

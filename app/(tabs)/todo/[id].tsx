@@ -1,7 +1,7 @@
 import { useTodoContext } from '@/context/TodoContext';
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function TodoDetails() {
@@ -9,10 +9,20 @@ export default function TodoDetails() {
   const { todos, updateTodo, deleteTodo } = useTodoContext();
 
   const todo = useMemo(() => todos.find(t => t.id === id), [todos, id]);
-  const [text, setText] = useState(todo?.text ?? '');
-  const [notes, setNotes] = useState(todo?.notes ?? '');
-  const [priority, setPriority] = useState<'high'|'medium'|'low'>(todo?.priority ?? 'medium');
-  const [reminderOn, setReminderOn] = useState(!!todo?.dueDate);
+  const [text, setText] = useState('');
+  const [notes, setNotes] = useState('');
+  const [priority, setPriority] = useState<'high'|'medium'|'low'>('medium');
+  const [reminderOn, setReminderOn] = useState(false);
+
+  // Update state when todo changes (must be after all hooks)
+  useEffect(() => {
+    if (todo) {
+      setText(todo.text ?? '');
+      setNotes(todo.notes ?? '');
+      setPriority(todo.priority ?? 'medium');
+      setReminderOn(!!todo.dueDate);
+    }
+  }, [todo]);
 
   if (!todo) {
     return (
