@@ -1,6 +1,7 @@
+import { cancelTaskNotification, scheduleTaskNotification } from '@/utils/notificationUtils';
 import { appendCompletionLog } from '@/utils/stats';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 export type PomodoroSettings = {
   enabled: boolean;
@@ -32,6 +33,7 @@ export type Todo = {
   locationCoords?: string;
   url?: string;
   images?: string[];
+  attachments?: Array<{ uri: string; name: string; mimeType?: string }>;
   subTasks?: Todo[];
   tags?: string[];
   pomodoro?: PomodoroSettings;
@@ -118,13 +120,22 @@ export const TodoProvider: React.FC<{ children: React.ReactNode }> = ({ children
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(todos, replacer)).catch(() => {});
   }, [todos]);
 
-  const addTodo = (todo: Todo) => {
-    // Ensure todo has an ID
+  const addTodo = useCallback((todo: Todo) => {
     const todoWithId = todo.id ? todo : { ...todo, id: Date.now().toString() };
     setTodos(prev => [...prev, todoWithId]);
-  };
-  
-  const toggleTodo = (id: string, forDate?: Date) =>
+    // Schedule notification if task has a due date
+    if (todoWithId.dueDate) {
+      scheduleTaskNotification({
+        taskId: todoWithId.id,
+        title: todoWithId.text,
+        dueDate: new Date(todoWithId.dueDate),
+        earlyReminder: todoWithId.earlyReminder,
+        notes: todoWithId.notes,
+      }).catch(() => {});
+    }
+  }, []);
+
+  const toggleTodo = useCallback((id: string, forDate?: Date) =>
     setTodos(prev => prev.map(t => {
       if (t.id !== id) return t;
       
@@ -155,12 +166,14 @@ export const TodoProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try { appendCompletionLog({ id: updated.id, completedAt: Date.now(), listId: updated.listId, priority: updated.priority }); } catch {}
       }
       return updated;
-    }));
-  
-  const deleteTodo = (id: string) =>
-    setTodos(prev => prev.filter(t => t.id !== id));
+    })), []);
 
-  const addSubTask = (parentId: string, text: string) => {
+  const deleteTodo = useCallback((id: string) => {
+    cancelTaskNotification(id).catch(() => {});
+    setTodos(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  const addSubTask = useCallback((parentId: string, text: string) => {
     setTodos(prev => prev.map(todo => {
       if (todo.id === parentId) {
         const newSubTask: Todo = {
@@ -177,9 +190,9 @@ export const TodoProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return todo;
     }));
-  };
+  }, []);
 
-  const toggleSubTask = (parentId: string, subTaskId: string) => {
+  const toggleSubTask = useCallback((parentId: string, subTaskId: string) => {
     setTodos(prev => prev.map(todo => {
       if (todo.id === parentId && todo.subTasks) {
         return {
@@ -191,25 +204,44 @@ export const TodoProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return todo;
     }));
-  };
+  }, []);
 
-  const updateTodo = (id: string, patch: Partial<Todo>) => {
-    setTodos(prev => prev.map(todo => 
-      todo.id === id ? { ...todo, ...patch } : todo
-    ));
-  };
+  const updateTodo = useCallback((id: string, patch: Partial<Todo>) => {
+    setTodos(prev => {
+      const updated = prev.map(todo => {
+        if (todo.id !== id) return todo;
+        const merged = { ...todo, ...patch };
+        // Reschedule notification if due date changed
+        if (merged.dueDate) {
+          scheduleTaskNotification({
+            taskId: merged.id,
+            title: merged.text,
+            dueDate: new Date(merged.dueDate),
+            earlyReminder: merged.earlyReminder,
+            notes: merged.notes,
+          }).catch(() => {});
+        } else {
+          cancelTaskNotification(merged.id).catch(() => {});
+        }
+        return merged;
+      });
+      return updated;
+    });
+  }, []);
+
+  const value = useMemo(() => ({
+    todos,
+    isLoading,
+    addTodo,
+    toggleTodo,
+    deleteTodo,
+    addSubTask,
+    toggleSubTask,
+    updateTodo,
+  }), [todos, isLoading, addTodo, toggleTodo, deleteTodo, addSubTask, toggleSubTask, updateTodo]);
 
   return (
-    <TodoContext.Provider value={{ 
-      todos,
-      isLoading,
-      addTodo, 
-      toggleTodo, 
-      deleteTodo, 
-      addSubTask, 
-      toggleSubTask, 
-      updateTodo 
-    }}>
+    <TodoContext.Provider value={value}>
       {children}
     </TodoContext.Provider>
   );

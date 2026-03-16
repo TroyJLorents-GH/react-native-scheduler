@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { useFocusContext } from '../../context/FocusContext';
 import { useListContext } from '../../context/ListContext';
+import { useTheme } from '../../context/ThemeContext';
 import { Todo, useTodoContext } from '../../context/TodoContext';
 import { getTasksForDate, getTasksDueTomorrow, isTaskOverdue, isTaskCompletedForDate, shouldTaskAppearOnDate } from '../../utils/recurring';
 import { getFocusMinutesSince } from '../../utils/stats';
@@ -17,6 +18,7 @@ export default function HomeDashboard() {
   const { todos, toggleTodo } = useTodoContext();
   const { startTaskSession } = useFocusContext();
   const { lists } = useListContext();
+  const { colors, isDark } = useTheme();
   // const { user, isAuthenticated, isLoading: authLoading, signIn, signOut } = useGoogleAuth();
   
   // Greeting pulls username from Settings
@@ -44,13 +46,22 @@ export default function HomeDashboard() {
   useEffect(() => { loadUsername(); }, [loadUsername]);
   useFocusEffect(useCallback(() => { loadUsername(); }, [loadUsername]));
 
-  // Create stable date references using useMemo
+  // Track the current date, refreshing when the tab is focused
+  const [dateKey, setDateKey] = useState(0);
+  useFocusEffect(useCallback(() => {
+    setDateKey(prev => {
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      return now.getTime();
+    });
+  }, []));
+
   const today = useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     return d;
-  }, []);
-  
+  }, [dateKey]);
+
   const tomorrow = useMemo(() => {
     const d = new Date(today);
     d.setDate(d.getDate() + 1);
@@ -181,12 +192,12 @@ export default function HomeDashboard() {
   const overdueSummary = fmtHours(overdueTodos.reduce((sum, t) => sum + getDurationMin(t), 0));
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f8ff' }}>
-    <ScrollView contentContainerStyle={[styles.container, { paddingTop: 12 }]}> 
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <ScrollView contentContainerStyle={[styles.container, { paddingTop: 12, backgroundColor: colors.background }]}>
 
       {/* Greeting */}
       <View style={{ marginBottom: 16 }}>
-        <Text style={{ color: '#323447', fontSize: 28, fontWeight: '800' }}>
+        <Text style={{ color: colors.text, fontSize: 28, fontWeight: '800' }}>
           Hello{username ? `, ${username}` : ''}
         </Text>
       </View>
@@ -194,44 +205,44 @@ export default function HomeDashboard() {
       {/* Account Info moved to Settings */}
 
       {/* Daily Goals */}
-      <TouchableOpacity 
-        style={styles.card} 
-        activeOpacity={0.85} 
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: colors.card }]}
+        activeOpacity={0.85}
         onPress={() => router.push('/todays-tasks')}
         accessibilityLabel={`Daily Goals: ${completionPct}% complete, ${completedCount} of ${totalCount} tasks done`}
         accessibilityRole="button"
       >
-        <Text style={styles.sectionTitle}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
           <MaterialCommunityIcons name="target" size={21} color="#ff9a62" />  Daily Goals
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
-            <Text style={{ color: '#323447', fontSize: 22, fontWeight: 'bold' }}>{completionPct}%</Text>
-            <Text style={{ color: '#7a7c96' }}>{completedCount} of {totalCount} completed</Text>
+            <Text style={{ color: colors.text, fontSize: 22, fontWeight: 'bold' }}>{completionPct}%</Text>
+            <Text style={{ color: colors.textSecondary }}>{completedCount} of {totalCount} completed</Text>
           </View>
-          <View style={{ width: 140, height: 10, backgroundColor: '#f0f1f6', borderRadius: 6, overflow: 'hidden' }}>
-            <View style={{ width: `${completionPct}%`, height: '100%', backgroundColor: '#67c99a' }} />
+          <View style={{ width: 140, height: 10, backgroundColor: colors.borderLight, borderRadius: 6, overflow: 'hidden' }}>
+            <View style={{ width: `${completionPct}%`, height: '100%', backgroundColor: colors.accent }} />
           </View>
             </View>
         </TouchableOpacity>
 
       {/* Today's Schedule removed */}
 
-      {/* Weekly Focus (no nav to Stats for now) */}
-      <View style={styles.card}>
+      {/* Weekly Focus - tappable to open Stats */}
+      <TouchableOpacity style={[styles.card, { backgroundColor: colors.card }]} activeOpacity={0.85} onPress={() => router.push('/stats')}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text style={styles.sectionTitle}><MaterialCommunityIcons name="timer-sand" size={21} color="#556de8" />  Weekly Focus</Text>
-          <Text style={{ color: '#7a7c96', fontWeight: '600' }}>{Math.floor(weeklyMin/60)}h {weeklyMin%60}m</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}><MaterialCommunityIcons name="timer-sand" size={21} color="#556de8" />  Weekly Focus</Text>
+          <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>{Math.floor(weeklyMin/60)}h {weeklyMin%60}m</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
           {(() => {
-            const g = Math.max(1, weeklyGoalMin || 300); // default if not set
+            const g = Math.max(1, weeklyGoalMin || 300);
             const pct = Math.min(1, weeklyMin / g);
             const size = 64; const r = 26; const cx = size/2; const cy = size/2; const C = 2*Math.PI*r; const dash = `${(pct*C).toFixed(1)} ${C.toFixed(1)}`;
             return (
               <View style={{ width: size, height: size, marginRight: 12 }}>
                 <Svg width={size} height={size}>
-                  <Circle cx={cx} cy={cy} r={r} stroke="#e5e7f3" strokeWidth={8} fill="none" />
+                  <Circle cx={cx} cy={cy} r={r} stroke={colors.borderLight} strokeWidth={8} fill="none" />
                   <Circle cx={cx} cy={cy} r={r} stroke="#556de8" strokeWidth={8} strokeDasharray={dash} strokeLinecap="round" fill="none" transform={`rotate(-90 ${cx} ${cy})`} />
                 </Svg>
                 <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
@@ -240,24 +251,25 @@ export default function HomeDashboard() {
               </View>
             );
           })()}
-          <View>
-            <Text style={{ color: '#323447', fontWeight: '700' }}>Last 7 days</Text>
-            <Text style={{ color: '#7a7c96' }}>{weeklyMin} min • Goal {weeklyGoalMin} min</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.text, fontWeight: '700' }}>Last 7 days</Text>
+            <Text style={{ color: colors.textSecondary }}>{weeklyMin} min • Goal {weeklyGoalMin} min</Text>
           </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
         </View>
-      </View>
+      </TouchableOpacity>
 
       {/* Today's Tasks */}
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.card }]}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <MaterialCommunityIcons name="check-circle-outline" size={21} color="#67c99a" />
-            <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>Today's Tasks</Text>
+            <MaterialCommunityIcons name="check-circle-outline" size={21} color={colors.accent} />
+            <Text style={[styles.sectionTitle, { marginLeft: 6, color: colors.text }]}>Today's Tasks</Text>
           </View>
-          <Text style={styles.metricsText}>{todaySummary}  {todaysTodos.length}</Text>
+          <Text style={[styles.metricsText, { color: colors.textSecondary }]}>{todaySummary}  {todaysTodos.length}</Text>
         </View>
         {todaysTodos.length === 0 ? (
-          <Text style={styles.emptyText}>No to-dos for today.</Text>
+          <Text style={[styles.emptyText, { color: colors.textTertiary }]}>No to-dos for today.</Text>
         ) : (
           <DraggableFlatList<Todo>
             data={displayTodos}
@@ -275,8 +287,8 @@ export default function HomeDashboard() {
               setReorderMode(false);
             }}
             renderItem={({ item, drag, isActive }: { item: Todo; drag: () => void; isActive: boolean }) => (
-              <TouchableOpacity 
-                style={[styles.todoItem, isActive && { opacity: 0.9 }]} 
+              <TouchableOpacity
+                style={[styles.todoItem, { backgroundColor: colors.surfaceElevated }, isActive && { opacity: 0.9 }]} 
                 onLongPress={drag}
                 activeOpacity={0.8}
                 onPress={() => {
@@ -308,14 +320,14 @@ export default function HomeDashboard() {
                     </TouchableOpacity>
                     <View style={styles.todoContent}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={[styles.todoText, isCompletedToday && { textDecorationLine: 'line-through', color: '#aaa' }]}>
+                        <Text style={[styles.todoText, { color: colors.text }, isCompletedToday && { textDecorationLine: 'line-through', color: colors.textTertiary }]}>
                           {item.text}
                         </Text>
                         {item.repeat && item.repeat !== 'Never' && (
                           <Ionicons name="repeat" size={14} color="#007AFF" />
                         )}
                       </View>
-                      <Text style={styles.todoNotes}>
+                      <Text style={[styles.todoNotes, { color: colors.textTertiary }]}>
                         {lists.find(l => l.id === item.listId)?.name || 'Reminders'}
                       </Text>
                     </View>
@@ -331,80 +343,80 @@ export default function HomeDashboard() {
                   accessibilityLabel={`Start focus session for ${item.text}`}
                   accessibilityRole="button"
                 >
-                  <Ionicons name={'play-circle'} size={26} color={'#67c99a'} style={{ marginLeft: 9 }} />
+                  <Ionicons name={'play-circle'} size={26} color={colors.accent} style={{ marginLeft: 9 }} />
                 </TouchableOpacity>
               </TouchableOpacity>
             )}
           />
         )}
         <View style={styles.addButtonsRow}>
-          <TouchableOpacity style={[styles.addBtn, styles.addBtnHalf]} onPress={() => router.push('/todo/new')}>
-            <Ionicons name="add-circle" size={24} color="#67c99a" />
-          <Text style={styles.addBtnText}>Add To-Do</Text>
+          <TouchableOpacity style={[styles.addBtn, styles.addBtnHalf, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]} onPress={() => router.push('/todo/new')}>
+            <Ionicons name="add-circle" size={24} color={colors.accent} />
+          <Text style={[styles.addBtnText, { color: colors.accent }]}>Add To-Do</Text>
         </TouchableOpacity>
-          <TouchableOpacity style={[styles.addBtn, styles.addBtnHalf]} onPress={() => router.push('/focus/new')}>
-            <Ionicons name="timer-outline" size={24} color="#67c99a" />
-            <Text style={styles.addBtnText}>Add Focus Time</Text>
+          <TouchableOpacity style={[styles.addBtn, styles.addBtnHalf, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]} onPress={() => router.push('/focus/new')}>
+            <Ionicons name="timer-outline" size={24} color={colors.accent} />
+            <Text style={[styles.addBtnText, { color: colors.accent }]}>Add Focus Time</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Tomorrow (collapsible) */}
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.card }]}>
         <TouchableOpacity onPress={() => setShowTomorrow(!showTomorrow)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <MaterialCommunityIcons name="weather-sunset" size={21} color="#f59e0b" />
-            <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>Tomorrow</Text>
+            <Text style={[styles.sectionTitle, { marginLeft: 6, color: colors.text }]}>Tomorrow</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={styles.metricsText}>{tomorrowSummary}  {tomorrowTodos.length}</Text>
-            <Ionicons name={showTomorrow ? 'chevron-up' : 'chevron-down'} size={20} color="#7a7c96" style={{ marginLeft: 8 }} />
+            <Text style={[styles.metricsText, { color: colors.textSecondary }]}>{tomorrowSummary}  {tomorrowTodos.length}</Text>
+            <Ionicons name={showTomorrow ? 'chevron-up' : 'chevron-down'} size={20} color={colors.textSecondary} style={{ marginLeft: 8 }} />
           </View>
         </TouchableOpacity>
         {showTomorrow && (
-          tomorrowTodos.length === 0 ? <Text style={styles.emptyText}>No tasks for tomorrow.</Text> :
+          tomorrowTodos.length === 0 ? <Text style={[styles.emptyText, { color: colors.textTertiary }]}>No tasks for tomorrow.</Text> :
           tomorrowTodos.map(item => (
-            <HomeRow key={item.id} item={item} listsName={lists.find(l=>l.id===item.listId)?.name} onToggle={() => toggleTodo(item.id, tomorrow)} forDate={tomorrow} />
+            <HomeRow key={item.id} item={item} listsName={lists.find(l=>l.id===item.listId)?.name} onToggle={() => toggleTodo(item.id, tomorrow)} forDate={tomorrow} colors={colors} />
           ))
         )}
       </View>
 
       {/* Upcoming (collapsible) */}
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.card }]}>
         <TouchableOpacity onPress={() => setShowUpcoming(!showUpcoming)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <MaterialCommunityIcons name="calendar-outline" size={21} color="#3b82f6" />
-            <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>Upcoming</Text>
+            <Text style={[styles.sectionTitle, { marginLeft: 6, color: colors.text }]}>Upcoming</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={styles.metricsText}>{upcomingSummary}  {upcomingTodos.length}</Text>
-            <Ionicons name={showUpcoming ? 'chevron-up' : 'chevron-down'} size={20} color="#7a7c96" style={{ marginLeft: 8 }} />
+            <Text style={[styles.metricsText, { color: colors.textSecondary }]}>{upcomingSummary}  {upcomingTodos.length}</Text>
+            <Ionicons name={showUpcoming ? 'chevron-up' : 'chevron-down'} size={20} color={colors.textSecondary} style={{ marginLeft: 8 }} />
           </View>
         </TouchableOpacity>
         {showUpcoming && (
-          upcomingTodos.length === 0 ? <Text style={styles.emptyText}>No upcoming tasks.</Text> :
+          upcomingTodos.length === 0 ? <Text style={[styles.emptyText, { color: colors.textTertiary }]}>No upcoming tasks.</Text> :
           upcomingTodos.map(item => (
-            <HomeRow key={item.id} item={item} listsName={lists.find(l=>l.id===item.listId)?.name} onToggle={() => toggleTodo(item.id)} />
+            <HomeRow key={item.id} item={item} listsName={lists.find(l=>l.id===item.listId)?.name} onToggle={() => toggleTodo(item.id)} colors={colors} />
           ))
         )}
       </View>
 
       {/* Overdue (collapsible) */}
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.card }]}>
         <TouchableOpacity onPress={() => setShowOverdue(!showOverdue)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <MaterialCommunityIcons name="alert-circle-outline" size={21} color="#ef4444" />
-            <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>Overdue</Text>
+            <Text style={[styles.sectionTitle, { marginLeft: 6, color: colors.text }]}>Overdue</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={styles.metricsText}>{overdueSummary}  {overdueTodos.length}</Text>
-            <Ionicons name={showOverdue ? 'chevron-up' : 'chevron-down'} size={20} color="#7a7c96" style={{ marginLeft: 8 }} />
+            <Text style={[styles.metricsText, { color: colors.textSecondary }]}>{overdueSummary}  {overdueTodos.length}</Text>
+            <Ionicons name={showOverdue ? 'chevron-up' : 'chevron-down'} size={20} color={colors.textSecondary} style={{ marginLeft: 8 }} />
           </View>
         </TouchableOpacity>
         {showOverdue && (
-          overdueTodos.length === 0 ? <Text style={styles.emptyText}>Nothing overdue. Nicely done!</Text> :
+          overdueTodos.length === 0 ? <Text style={[styles.emptyText, { color: colors.textTertiary }]}>Nothing overdue. Nicely done!</Text> :
           overdueTodos.map(item => (
-            <HomeRow key={item.id} item={item} listsName={lists.find(l=>l.id===item.listId)?.name} onToggle={() => toggleTodo(item.id)} />
+            <HomeRow key={item.id} item={item} listsName={lists.find(l=>l.id===item.listId)?.name} onToggle={() => toggleTodo(item.id)} colors={colors} />
           ))
         )}
       </View>
@@ -610,14 +622,15 @@ const styles = StyleSheet.create({
   metricsText: { color: '#7a7c96', fontWeight: '600' },
 });
 
-function HomeRow({ item, listsName, onToggle, forDate }: { item: Todo; listsName?: string; onToggle: () => void; forDate?: Date }) {
-  // For recurring tasks, check completion for the specific date
+function HomeRow({ item, listsName, onToggle, forDate, colors }: { item: Todo; listsName?: string; onToggle: () => void; forDate?: Date; colors?: any }) {
+  const theme = useTheme();
+  const c = colors || theme.colors;
   const isCompleted = item.repeat && item.repeat !== 'Never' && forDate
     ? isTaskCompletedForDate(item, forDate)
     : item.done;
-    
+
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={{
         flexDirection: 'row',
         alignItems: 'flex-start',
@@ -625,24 +638,24 @@ function HomeRow({ item, listsName, onToggle, forDate }: { item: Todo; listsName
         paddingVertical: 8,
         paddingHorizontal: 8,
         borderRadius: 8,
-        backgroundColor: '#f8f9fa',
+        backgroundColor: c.surfaceElevated,
       }}
       activeOpacity={0.9}
       onPress={() => router.push({ pathname: '/task-details', params: { id: item.id } })}
     >
       <TouchableOpacity onPress={onToggle} style={{ marginRight: 8, marginTop: 2 }}>
-        <Ionicons name={isCompleted ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={isCompleted ? '#67c99a' : '#bbb'} />
+        <Ionicons name={isCompleted ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={isCompleted ? c.accent : c.textTertiary} />
       </TouchableOpacity>
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={[{ fontSize: 16, color: '#222', marginBottom: 2 }, isCompleted && { textDecorationLine: 'line-through', color: '#aaa' }]} numberOfLines={1}>{item.text}</Text>
+          <Text style={[{ fontSize: 16, color: c.text, marginBottom: 2 }, isCompleted && { textDecorationLine: 'line-through', color: c.textTertiary }]} numberOfLines={1}>{item.text}</Text>
           {item.repeat && item.repeat !== 'Never' && (
-            <Ionicons name="repeat" size={14} color="#007AFF" />
+            <Ionicons name="repeat" size={14} color={c.info} />
           )}
         </View>
-        <Text style={{ fontSize: 14, color: '#a4a4a4', fontStyle: 'italic' }} numberOfLines={1}>{listsName || 'Reminders'}</Text>
+        <Text style={{ fontSize: 14, color: c.textTertiary, fontStyle: 'italic' }} numberOfLines={1}>{listsName || 'Reminders'}</Text>
       </View>
-      <Ionicons name={'play-circle'} size={26} color={'#67c99a'} style={{ marginLeft: 9 }} />
+      <Ionicons name={'play-circle'} size={26} color={c.accent} style={{ marginLeft: 9 }} />
     </TouchableOpacity>
   );
 }

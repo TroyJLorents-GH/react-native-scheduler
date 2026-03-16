@@ -5,10 +5,12 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TodoAgendaScreen from '../../components/TodoAgendaScreen';
 import TodoCalendarDayView from '../../components/TodoCalendarDayView';
+import { useTheme } from '../../context/ThemeContext';
 import { useTodoContext } from '../../context/TodoContext';
 
 export default function ScheduleTab() {
   const { todos } = useTodoContext();
+  const { colors, isDark } = useTheme();
 
   // Include tasks with due dates OR recurring tasks (which may use createdAt as start date)
   const scheduledTodos = todos.filter(t => t.dueDate || (t.repeat && t.repeat !== 'Never'));
@@ -21,13 +23,13 @@ export default function ScheduleTab() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f8ff' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={styles.toggleBar}>
-        <TouchableOpacity onPress={() => setViewMode('vertical')} style={[styles.toggleBtn, viewMode === 'vertical' && styles.toggleActive]}>
-          <Text style={[styles.toggleText, viewMode === 'vertical' && styles.toggleTextActive]}>Vertical View</Text>
+        <TouchableOpacity onPress={() => setViewMode('vertical')} style={[styles.toggleBtn, { backgroundColor: colors.surface }, viewMode === 'vertical' && { backgroundColor: colors.surfaceElevated }]}>
+          <Text style={[styles.toggleText, { color: colors.textSecondary }, viewMode === 'vertical' && { color: colors.text, fontWeight: '600' }]}>Vertical View</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setViewMode('calendar')} style={[styles.toggleBtn, viewMode === 'calendar' && styles.toggleActive]}>
-          <Text style={[styles.toggleText, viewMode === 'calendar' && styles.toggleTextActive]}>Calendar View</Text>
+        <TouchableOpacity onPress={() => setViewMode('calendar')} style={[styles.toggleBtn, { backgroundColor: colors.surface }, viewMode === 'calendar' && { backgroundColor: colors.surfaceElevated }]}>
+          <Text style={[styles.toggleText, { color: colors.textSecondary }, viewMode === 'calendar' && { color: colors.text, fontWeight: '600' }]}>Calendar View</Text>
         </TouchableOpacity>
       </View>
 

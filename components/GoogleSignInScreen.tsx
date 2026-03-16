@@ -9,21 +9,14 @@ export default function GoogleSignInScreen() {
   async function signInWithGoogle() {
     try {
       setIsLoading(true);
-      console.log('=== GOOGLE AUTH DEBUG ===');
-      console.log('Starting Google authentication...');
-      
       const result = await authenticateWithGoogleSimple();
-      
-      console.log('Auth result:', result);
 
       if (result.success && result.user) {
         setUser(result.user);
-        console.log('Authentication successful!');
-        alert('✅ Successfully signed in as ' + result.user.name);
+        alert('Successfully signed in as ' + result.user.name);
       } else {
         setUser(null);
-        console.log('Authentication failed:', result.error);
-        alert('❌ Authentication failed: ' + result.error);
+        alert('Authentication failed: ' + result.error);
       }
     } catch (error) {
       console.error('Google auth error:', error);

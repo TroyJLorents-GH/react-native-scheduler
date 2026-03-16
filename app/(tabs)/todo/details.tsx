@@ -1,9 +1,12 @@
 import LocationSearchModal from '@/components/LocationSearchModal';
 import { useTodoContext } from '@/context/TodoContext';
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import { Directory, File, Paths } from 'expo-file-system';
+import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Modal, Platform, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Modal, Platform, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -54,7 +57,9 @@ export default function DetailsScreen() {
   );
 
   const [priority, setPriority] = useState(String(existingTodo?.priority || params.priority || 'medium'));
-  // Tags removed for simplified UX
+  const [urlValue, setUrlValue] = useState(String(existingTodo?.url || params.url || ''));
+  const [images, setImages] = useState<string[]>(existingTodo?.images || []);
+  const [attachments, setAttachments] = useState<Array<{ uri: string; name: string; mimeType?: string }>>(existingTodo?.attachments || []);
 
   // Modal states
   const [showRepeatModal, setShowRepeatModal] = useState(false);
@@ -106,6 +111,93 @@ export default function DetailsScreen() {
     }
   }, [params.dueDate, params.dueTime, params.earlyReminder, params.repeat, params.priority, params.location]);
 
+  // Photo handlers
+  const pickFromLibrary = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Please allow Photos access to pick images.');
+      return;
+    }
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        allowsMultipleSelection: true,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.9,
+        selectionLimit: 5,
+      });
+      if (!result.canceled) {
+        const uris = result.assets?.map(a => a.uri).filter(Boolean) as string[];
+        setImages(prev => Array.from(new Set([...prev, ...uris])));
+      }
+    } catch {
+      Alert.alert('Error', 'Could not open photo library.');
+    }
+  };
+
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Please allow Camera access to take photos.');
+      return;
+    }
+    try {
+      const result = await ImagePicker.launchCameraAsync({ quality: 0.9 });
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        const src = result.assets[0].uri;
+        const photosDir = new Directory(Paths.document, 'photos');
+        try { photosDir.create({ intermediates: true, idempotent: true }); } catch {}
+        const destFile = new File(photosDir, `photo_${Date.now()}.jpg`);
+        try {
+          new File(src).copy(destFile);
+          setImages(prev => Array.from(new Set([...prev, destFile.uri])));
+        } catch {
+          setImages(prev => Array.from(new Set([...prev, src])));
+        }
+      }
+    } catch {
+      Alert.alert('Error', 'Could not open camera.');
+    }
+  };
+
+  const showPhotoOptions = () => {
+    Alert.alert('Add Photo', undefined, [
+      { text: 'Take Photo', onPress: takePhoto },
+      { text: 'Photo Library', onPress: pickFromLibrary },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const removeImage = (uri: string) => {
+    setImages(prev => prev.filter(u => u !== uri));
+    if (uri.startsWith(Paths.document.uri || '')) {
+      try { new File(uri).delete(); } catch {}
+    }
+  };
+
+  const pickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        multiple: true,
+        copyToCacheDirectory: true,
+      });
+      if (!result.canceled && result.assets) {
+        const newAttachments = result.assets.map(a => ({
+          uri: a.uri,
+          name: a.name,
+          mimeType: a.mimeType,
+        }));
+        setAttachments(prev => [...prev, ...newAttachments]);
+      }
+    } catch {
+      Alert.alert('Error', 'Could not pick document.');
+    }
+  };
+
+  const removeAttachment = (uri: string) => {
+    setAttachments(prev => prev.filter(a => a.uri !== uri));
+  };
+
   const formatDate = (date: Date) => {
     const today = new Date();
     const tomorrow = new Date(today);
@@ -144,6 +236,9 @@ export default function DetailsScreen() {
         repeat: repeat !== 'Never' ? repeat : undefined,
         location: locationEnabled && selectedLocation ? selectedLocation.address : undefined,
         locationCoords: locationEnabled && selectedLocation ? `${selectedLocation.latitude}, ${selectedLocation.longitude}` : undefined,
+        url: urlValue || undefined,
+        images: images.length ? images : undefined,
+        attachments: attachments.length ? attachments : undefined,
       });
       
       // Navigate to task details page
@@ -166,7 +261,7 @@ export default function DetailsScreen() {
           earlyReminder: earlyReminder,
           repeat: repeat,
           location: locationEnabled && selectedLocation ? selectedLocation.address : '',
-          url: String(params.url || ''),
+          url: urlValue || '',
           // Preserve Pomodoro settings
           pomodoroEnabled: String(params.pomodoroEnabled || ''),
           workTime: String(params.workTime || ''),
@@ -343,13 +438,74 @@ export default function DetailsScreen() {
         </TouchableOpacity>
 
         {/* Add Image */}
-        <TouchableOpacity style={styles.section} onPress={() => Alert.alert('Coming Soon', 'Image functionality will be implemented with expo-camera and expo-media-library')}>
-          <Text style={styles.addImageText}>Add Image</Text>
-        </TouchableOpacity>
+        <View style={styles.section}>
+          <TouchableOpacity onPress={showPhotoOptions}>
+            <View style={styles.row}>
+              <View style={styles.rowLeft}>
+                <Ionicons name="camera" size={24} color="#FF9500" />
+                <Text style={styles.rowTitle}>Add Image</Text>
+              </View>
+              <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
+            </View>
+          </TouchableOpacity>
+          {images.length > 0 && (
+            <View style={styles.imagesGrid}>
+              {images.map((uri) => (
+                <View key={uri} style={styles.imageItem}>
+                  <Image source={{ uri }} style={styles.imageThumb} />
+                  <TouchableOpacity style={styles.imageRemove} onPress={() => removeImage(uri)}>
+                    <Ionicons name="close" size={14} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
 
         {/* URL */}
         <View style={styles.section}>
-          <Text style={styles.urlText}>URL</Text>
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <Ionicons name="link" size={24} color="#5AC8FA" />
+              <Text style={styles.rowTitle}>URL</Text>
+            </View>
+          </View>
+          <TextInput
+            style={styles.urlInput}
+            placeholder="https://example.com"
+            placeholderTextColor="#8e8e93"
+            value={urlValue}
+            onChangeText={setUrlValue}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+          />
+        </View>
+
+        {/* Attach Document */}
+        <View style={styles.section}>
+          <TouchableOpacity onPress={pickDocument}>
+            <View style={styles.row}>
+              <View style={styles.rowLeft}>
+                <Ionicons name="document-attach" size={24} color="#34C759" />
+                <Text style={styles.rowTitle}>Attach Document</Text>
+              </View>
+              <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
+            </View>
+          </TouchableOpacity>
+          {attachments.length > 0 && (
+            <View style={{ marginTop: 12 }}>
+              {attachments.map((att) => (
+                <View key={att.uri} style={styles.attachmentRow}>
+                  <Ionicons name="document-outline" size={18} color="#007AFF" />
+                  <Text style={styles.attachmentName} numberOfLines={1}>{att.name}</Text>
+                  <TouchableOpacity onPress={() => removeAttachment(att.uri)}>
+                    <Ionicons name="close-circle" size={20} color="#ff453a" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       </KeyboardAwareScrollView>
 
@@ -502,7 +658,6 @@ export default function DetailsScreen() {
         onClose={() => setShowLocationModal(false)}
         onLocationSelect={(location) => {
           try {
-            console.log('Location selected in details:', location);
             setSelectedLocation(location);
             // Store both the address and coordinates
             const locationData = {
@@ -512,7 +667,7 @@ export default function DetailsScreen() {
             // Don't use router.setParams to avoid clearing other state
             // Just update the local state and let the save function handle it
           } catch (error) {
-            console.error('Error handling location selection:', error);
+            if (__DEV__) console.error('Error handling location selection:', error);
             Alert.alert('Error', 'There was an error setting the location. Please try again.');
           }
         }}
@@ -630,16 +785,58 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 12,
   },
-  addImageText: {
-    color: '#007AFF',
-    fontSize: 17,
-    fontWeight: '400',
-    textAlign: 'center',
+  imagesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
   },
-  urlText: {
-    color: '#8e8e93',
-    fontSize: 17,
-    fontWeight: '400',
+  imageItem: {
+    width: 72,
+    height: 72,
+    borderRadius: 8,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#2c2c2e',
+  },
+  imageThumb: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  imageRemove: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  urlInput: {
+    backgroundColor: '#2c2c2e',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 12,
+  },
+  attachmentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2c2c2e',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 6,
+    gap: 8,
+  },
+  attachmentName: {
+    color: '#fff',
+    fontSize: 14,
+    flex: 1,
   },
   modalOverlay: {
     flex: 1,

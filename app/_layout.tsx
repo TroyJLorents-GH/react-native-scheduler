@@ -1,6 +1,7 @@
+import { requestNotificationPermissions } from '@/utils/notificationUtils';
 import { Slot } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import 'react-native-gesture-handler';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -9,6 +10,7 @@ import { EventProvider } from '../context/EventContext';
 import { FocusProvider } from '../context/FocusContext';
 import { ListProvider } from '../context/ListContext';
 import { TempDetailsProvider } from '../context/TempDetailsContext';
+import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { TodoProvider } from '../context/TodoContext';
 
 // Error Boundary Component
@@ -83,23 +85,35 @@ const errorStyles = StyleSheet.create({
   },
 });
 
+function ThemedStatusBar() {
+  const { isDark } = useTheme();
+  return <StatusBar style={isDark ? 'light' : 'dark'} translucent backgroundColor="transparent" />;
+}
+
 export default function RootLayout() {
+  useEffect(() => {
+    // Request notification permissions on app launch
+    requestNotificationPermissions().catch(() => {});
+  }, []);
+
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <EventProvider>
-          <ListProvider>
-            <TodoProvider>
-              <FocusProvider>
-                <TempDetailsProvider>
-                  <GlobalFocusBanner />
-                  <StatusBar style="dark" translucent backgroundColor="transparent" />
-                  <Slot />
-                </TempDetailsProvider>
-              </FocusProvider>
-            </TodoProvider>
-          </ListProvider>
-        </EventProvider>
+        <ThemeProvider>
+          <EventProvider>
+            <ListProvider>
+              <TodoProvider>
+                <FocusProvider>
+                  <TempDetailsProvider>
+                    <GlobalFocusBanner />
+                    <ThemedStatusBar />
+                    <Slot />
+                  </TempDetailsProvider>
+                </FocusProvider>
+              </TodoProvider>
+            </ListProvider>
+          </EventProvider>
+        </ThemeProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>
   );

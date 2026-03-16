@@ -22,8 +22,6 @@ import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function NewReminder() {
-  console.log('=== NEW REMINDER RENDERED ===');
-  
   const { addTodo, updateTodo, todos } = useTodoContext();
   const { lists } = useListContext();
   const params = useLocalSearchParams();
@@ -461,13 +459,10 @@ export default function NewReminder() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => {
-          // Navigate directly to the todo dashboard
-          router.push('/todo');
-        }}>
+        <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>{isEditing ? 'Edit Task' : 'New Reminder'}</Text>
+        <Text style={styles.title}>{isEditing ? 'Edit Task' : 'New Task'}</Text>
         <TouchableOpacity onPress={save} disabled={!title.trim()}>
           <Text style={[styles.addButton, !title.trim() && styles.addButtonDisabled]}>
             {isEditing ? 'Save' : 'Add'}

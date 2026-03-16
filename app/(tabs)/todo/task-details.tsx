@@ -3,6 +3,7 @@ import { useFocusContext } from '@/context/FocusContext';
 import { useTodoContext } from '@/context/TodoContext';
 import { isTaskCompletedForDate } from '@/utils/recurring';
 import { Ionicons } from '@expo/vector-icons';
+import * as MailComposer from 'expo-mail-composer';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Image, Linking, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -97,26 +98,34 @@ export default function TaskDetailsScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Task Details</Text>
         <View style={styles.headerRightRow}>
-          <TouchableOpacity onPress={async () => {
-            try {
-              const parts: string[] = [];
-              parts.push(`Task: ${todo.text}`);
-              if (todo.notes) parts.push(`Notes: ${todo.notes}`);
-              if (todo.dueDate) {
-                const d = new Date(todo.dueDate);
-                parts.push(`Due: ${d.toLocaleString()}`);
-              }
-              if (todo.location) {
-                // Prefer coords link if available
-                let loc = todo.location;
-                if (todo.locationCoords) {
-                  loc = `http://maps.apple.com/?daddr=${todo.locationCoords}`;
+          <TouchableOpacity onPress={() => {
+            const parts: string[] = [];
+            parts.push(`Task: ${todo.text}`);
+            if (todo.notes) parts.push(`Notes: ${todo.notes}`);
+            if (todo.dueDate) parts.push(`Due: ${new Date(todo.dueDate).toLocaleString()}`);
+            if (todo.location) {
+              parts.push(`Location: ${todo.locationCoords ? `http://maps.apple.com/?daddr=${todo.locationCoords}` : todo.location}`);
+            }
+            if (todo.subTasks?.length) {
+              parts.push(`\nSubtasks:`);
+              todo.subTasks.forEach(s => parts.push(`  ${s.done ? '[x]' : '[ ]'} ${s.text}`));
+            }
+            const message = parts.join('\n');
+            Alert.alert('Share Task', 'How would you like to share?', [
+              { text: 'Text / Message', onPress: () => Share.share({ message }).catch(() => {}) },
+              { text: 'Email', onPress: async () => {
+                const available = await MailComposer.isAvailableAsync();
+                if (available) {
+                  await MailComposer.composeAsync({
+                    subject: `Task: ${todo.text}`,
+                    body: message,
+                  });
+                } else {
+                  Alert.alert('Email not available', 'No email account is configured on this device.');
                 }
-                parts.push(`Location: ${loc}`);
-              }
-              const message = parts.join('\n');
-              await Share.share({ message });
-            } catch {}
+              }},
+              { text: 'Cancel', style: 'cancel' },
+            ]);
           }} style={{ marginRight: 16 }}>
             <Ionicons name="share-outline" size={24} color="#007AFF" />
           </TouchableOpacity>

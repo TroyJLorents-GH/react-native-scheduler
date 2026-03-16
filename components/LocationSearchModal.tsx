@@ -150,7 +150,6 @@ export default function LocationSearchModal({
         currentLocation.coords.longitude
       );
 
-      console.log('Google Places results:', places);
 
       let mappedResults: SearchResultItem[] = places.map((place, index) => {
         const distance = calculateDistance(
@@ -197,7 +196,6 @@ export default function LocationSearchModal({
         } catch {}
       }
 
-      console.log('Converted search results:', mappedResults);
       // Sort results by distance (closest first)
       const sortedResults = mappedResults.sort((a, b) => (a.distance || 0) - (b.distance || 0));
       setSearchResults(sortedResults);
@@ -352,7 +350,6 @@ export default function LocationSearchModal({
         return;
       }
 
-      console.log('Confirming location:', selectedLocation);
       // Call back first, then close on the next tick to avoid UI race conditions
       onLocationSelect({ latitude, longitude, address });
       // persist recent locations (max 5, unique by lat/lng)

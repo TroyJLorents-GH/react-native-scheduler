@@ -22,9 +22,6 @@ export default function TodoDashboard() {
   const { todos } = useTodoContext();
   const { lists, deleteList } = useListContext();
   
-  console.log('=== TODO DASHBOARD RENDERED ===');
-  console.log('TodoDashboard - todos:', todos.length, 'lists:', lists.length);
-
   // --- derived counts for the cards ---
   const counts = useMemo(() => {
     const today = new Date();
