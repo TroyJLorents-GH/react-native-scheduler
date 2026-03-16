@@ -90,7 +90,12 @@ export default function TodoDashboard() {
         contentContainerStyle={{ padding: 16, paddingTop: 4, paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={s.title}>To‑Do</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <Text style={[s.title, { marginBottom: 0 }]}>To‑Do</Text>
+          <TouchableOpacity onPress={() => router.push('/search')} style={{ padding: 6 }}>
+            <Ionicons name="search" size={22} color="#7a7c96" />
+          </TouchableOpacity>
+        </View>
 
         {/* Cards grid */}
         <View style={s.grid}>

@@ -195,14 +195,15 @@ export default function HomeDashboard() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView contentContainerStyle={[styles.container, { paddingTop: 12, backgroundColor: colors.background }]}>
 
-      {/* Greeting */}
-      <View style={{ marginBottom: 16 }}>
+      {/* Greeting + Search */}
+      <View style={{ marginBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Text style={{ color: colors.text, fontSize: 28, fontWeight: '800' }}>
           Hello{username ? `, ${username}` : ''}
         </Text>
+        <TouchableOpacity onPress={() => router.push('/search')} style={{ padding: 6 }}>
+          <Ionicons name="search" size={24} color={colors.textSecondary} />
+        </TouchableOpacity>
       </View>
-
-      {/* Account Info moved to Settings */}
 
       {/* Daily Goals */}
       <TouchableOpacity
@@ -257,6 +258,15 @@ export default function HomeDashboard() {
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
         </View>
+      </TouchableOpacity>
+
+      {/* Habits */}
+      <TouchableOpacity style={[styles.card, { backgroundColor: colors.card }]} activeOpacity={0.85} onPress={() => router.push('/habits')}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}><MaterialCommunityIcons name="repeat-variant" size={21} color="#a855f7" />  Habits</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+        </View>
+        <Text style={{ color: colors.textSecondary, marginTop: 2 }}>Track streaks and daily habits</Text>
       </TouchableOpacity>
 
       {/* Today's Tasks */}

@@ -155,7 +155,110 @@ export function getTasksDueTomorrow(todos: Todo[]): Todo[] {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(0, 0, 0, 0);
-  
+
   return getTasksForDate(todos, tomorrow);
+}
+
+/**
+ * Get all recurring/habit tasks
+ */
+export function getHabitTasks(todos: Todo[]): Todo[] {
+  return todos.filter(t => t.repeat && t.repeat !== 'Never');
+}
+
+/**
+ * Calculate the current streak for a recurring task.
+ * Streak = consecutive scheduled days completed, counting back from yesterday
+ * (today is excluded since the day isn't over).
+ */
+export function getHabitStreak(task: Todo): number {
+  if (!task.repeat || task.repeat === 'Never') return 0;
+  const completedDates = task.completedDates || [];
+  if (completedDates.length === 0) return 0;
+
+  let streak = 0;
+  const now = new Date();
+
+  // Check if today is completed (bonus - include it if so)
+  const todayKey = getDateKey(now);
+  const todayCompleted = completedDates.includes(todayKey);
+
+  // Start checking from yesterday (or today if completed)
+  const checkStart = new Date(now);
+  if (!todayCompleted) {
+    checkStart.setDate(checkStart.getDate() - 1);
+  }
+
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(checkStart);
+    d.setDate(d.getDate() - i);
+    d.setHours(0, 0, 0, 0);
+
+    // Only count days when the task was scheduled
+    if (!shouldTaskAppearOnDate(task, d) && !isTaskCompletedForDate(task, d)) {
+      continue; // skip non-scheduled days (don't break streak)
+    }
+
+    const key = getDateKey(d);
+    if (completedDates.includes(key)) {
+      streak++;
+    } else if (shouldTaskAppearOnDate(task, d)) {
+      // Was scheduled but not completed = streak broken
+      break;
+    }
+  }
+
+  return streak;
+}
+
+/**
+ * Get the completion rate for a habit over the last N days.
+ * Returns a number between 0 and 1.
+ */
+export function getHabitCompletionRate(task: Todo, days: number): number {
+  if (!task.repeat || task.repeat === 'Never') return 0;
+  const completedDates = task.completedDates || [];
+
+  let scheduled = 0;
+  let completed = 0;
+
+  for (let i = 0; i < days; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    d.setHours(0, 0, 0, 0);
+
+    if (shouldTaskAppearOnDate(task, d)) {
+      scheduled++;
+      const key = getDateKey(d);
+      if (completedDates.includes(key)) {
+        completed++;
+      }
+    }
+  }
+
+  return scheduled > 0 ? completed / scheduled : 0;
+}
+
+/**
+ * Get the last 30 days completion map for a habit (for calendar heatmap).
+ * Returns array of { date: string, scheduled: boolean, completed: boolean }.
+ */
+export function getHabitCalendar(task: Todo, days: number = 30): Array<{ date: string; scheduled: boolean; completed: boolean }> {
+  const completedDates = task.completedDates || [];
+  const result: Array<{ date: string; scheduled: boolean; completed: boolean }> = [];
+
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    d.setHours(0, 0, 0, 0);
+    const key = getDateKey(d);
+    result.push({
+      date: key,
+      scheduled: shouldTaskAppearOnDate(task, d),
+      completed: completedDates.includes(key),
+    });
+  }
+
+  return result;
 }
 
