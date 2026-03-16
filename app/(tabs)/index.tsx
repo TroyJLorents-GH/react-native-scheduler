@@ -200,7 +200,7 @@ export default function HomeDashboard() {
         <Text style={{ color: colors.text, fontSize: 28, fontWeight: '800' }}>
           Hello{username ? `, ${username}` : ''}
         </Text>
-        <TouchableOpacity onPress={() => router.push('/search')} style={{ padding: 6 }}>
+        <TouchableOpacity onPress={() => router.push('/search' as any)} style={{ padding: 6 }}>
           <Ionicons name="search" size={24} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
@@ -261,7 +261,7 @@ export default function HomeDashboard() {
       </TouchableOpacity>
 
       {/* Habits */}
-      <TouchableOpacity style={[styles.card, { backgroundColor: colors.card }]} activeOpacity={0.85} onPress={() => router.push('/habits')}>
+      <TouchableOpacity style={[styles.card, { backgroundColor: colors.card }]} activeOpacity={0.85} onPress={() => router.push('/habits' as any)}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}><MaterialCommunityIcons name="repeat-variant" size={21} color="#a855f7" />  Habits</Text>
           <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
