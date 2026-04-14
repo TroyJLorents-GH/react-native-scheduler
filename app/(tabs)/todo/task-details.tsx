@@ -5,7 +5,7 @@ import { isTaskCompletedForDate } from '@/utils/recurring';
 import { Ionicons } from '@expo/vector-icons';
 import * as MailComposer from 'expo-mail-composer';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Linking, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -39,11 +39,15 @@ export default function TaskDetailsScreen() {
     }
     return todo.done;
   }, [todo, viewDate]);
+
   // Seed draft when task loads
-  if (todo && !editingTitle && titleDraft === '') {
-    // initialize once when entering screen
-    try { setTitleDraft(todo.text || ''); } catch {}
-  }
+  useEffect(() => {
+    if (todo && titleDraft === '') {
+      setTitleDraft(todo.text || '');
+    }
+  }, [todo?.id]);
+
+  const shouldAutoStart = useMemo(() => autostart === '1' || autostart === 'true', [autostart]);
 
   // Note: Do not auto-redirect focus tasks. Upstream navigation decides where to go.
 
@@ -69,7 +73,6 @@ export default function TaskDetailsScreen() {
     // updateTodo(todo.id, { done: true });
   };
 
-  const shouldAutoStart = useMemo(() => autostart === '1' || autostart === 'true', [autostart]);
   const priorityColor = todo?.priority === 'high' ? '#FF6B6B' : todo?.priority === 'medium' ? '#FFD93D' : todo?.priority === 'low' ? '#6BCF7F' : undefined;
   const priorityAbbr = todo?.priority === 'high' ? 'H' : todo?.priority === 'medium' ? 'M' : todo?.priority === 'low' ? 'L' : undefined;
 
@@ -384,7 +387,7 @@ export default function TaskDetailsScreen() {
         <TouchableOpacity style={[styles.bottomBtn, { backgroundColor: '#ef4444' }]} onPress={() => {
           Alert.alert('Delete Task', 'Are you sure you want to delete this task?', [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Delete', style: 'destructive', onPress: () => { deleteTodo(todo.id); router.back(); } },
+            { text: 'Delete', style: 'destructive', onPress: () => { router.back(); setTimeout(() => deleteTodo(todo.id), 100); } },
           ]);
         }}>
           <Ionicons name="trash" size={18} color="#fff" />

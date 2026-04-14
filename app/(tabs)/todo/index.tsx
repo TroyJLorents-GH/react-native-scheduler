@@ -5,7 +5,7 @@ import { useTodoContext } from '@/context/TodoContext';
 import { getTasksForDate, shouldTaskAppearOnDate, isTaskCompletedForDate } from '@/utils/recurring';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   Platform,
@@ -21,41 +21,34 @@ import { SwipeListView } from 'react-native-swipe-list-view';
 export default function TodoDashboard() {
   const { todos } = useTodoContext();
   const { lists, deleteList } = useListContext();
-  
-  // --- derived counts for the cards ---
+
   const counts = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
-    // Today's Tasks: using recurring logic to include tasks that repeat today
+
     const todaysTasks = getTasksForDate(todos, today).length;
-    
-    // All/Scheduled: active tasks that have a due date or repeat setting
+
     const all = todos.filter(t => {
       if (t.done) return false;
-      // Include if has due date in the future
       if (t.dueDate) {
         const dueDate = new Date(t.dueDate);
         dueDate.setHours(0, 0, 0, 0);
         if (dueDate >= today) return true;
       }
-      // Include if has repeat setting
       if (t.repeat && t.repeat !== 'Never') return true;
       return false;
     }).length;
-    
-    // Completed: count both done flag and recurring completed for today
+
     const completed = todos.filter(t => {
       if (t.repeat && t.repeat !== 'Never') {
         return isTaskCompletedForDate(t, today);
       }
       return t.done;
     }).length;
-    
+
     const priority = todos.filter(t => t.priority === 'high' && !t.done).length;
     const listCountsMap: Record<string, number> = {};
-    
-    // Focus-only (special list) - include recurring focus tasks for today
+
     const focus = todos.filter(t => {
       if (t.listId !== 'focus') return false;
       if (t.repeat && t.repeat !== 'Never') {
@@ -63,17 +56,27 @@ export default function TodoDashboard() {
       }
       return !t.done;
     }).length;
-    
+
     lists.forEach(l => {
       listCountsMap[l.id] = todos.filter(t => t.listId === l.id && !t.done).length;
     });
-    
+
+    // Completion rate for the progress ring
+    const totalActive = todaysTasks;
+    const todayCompleted = todos.filter(t => {
+      if (t.repeat && t.repeat !== 'Never') {
+        return shouldTaskAppearOnDate(t, today) && isTaskCompletedForDate(t, today);
+      }
+      return false;
+    }).length;
+
     return {
-      all, 
-      scheduled: todaysTasks, // Today's Tasks card shows today count
-      completed, 
-      todaysTasks, 
-      priority, 
+      all,
+      scheduled: todaysTasks,
+      completed,
+      todaysTasks,
+      todayCompleted,
+      priority,
       focus,
       lists: lists.length,
       perList: listCountsMap,
@@ -81,76 +84,150 @@ export default function TodoDashboard() {
   }, [todos, lists]);
 
   const [listModalOpen, setListModalOpen] = useState(false);
-  const [completedSheetOpen, setCompletedSheetOpen] = useState(false);
+
+  // Progress percentage for today
+  const todayTotal = counts.scheduled + counts.todayCompleted;
+  const progressPct = todayTotal > 0 ? Math.round((counts.todayCompleted / todayTotal) * 100) : 0;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f8ff' }}>
-      <ScrollView 
-        style={{ flex: 1 }} 
+      <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16, paddingTop: 4, paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <Text style={[s.title, { marginBottom: 0 }]}>To‑Do</Text>
-          <TouchableOpacity onPress={() => router.push('/search')} style={{ padding: 6 }}>
-            <Ionicons name="search" size={22} color="#7a7c96" />
+        {/* Header */}
+        <View style={s.headerRow}>
+          <View>
+            <Text style={s.title}>To‑Do</Text>
+            <Text style={s.subtitle}>
+              {counts.scheduled > 0
+                ? `${counts.scheduled} task${counts.scheduled !== 1 ? 's' : ''} today`
+                : 'All clear for today'}
+            </Text>
+          </View>
+          <View style={s.headerActions}>
+            <TouchableOpacity onPress={() => router.push('/search' as any)} style={s.headerBtn}>
+              <Ionicons name="search" size={20} color="#6366f1" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/habits' as any)} style={s.headerBtn}>
+              <Ionicons name="flame-outline" size={20} color="#6366f1" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Today Progress Banner */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => router.push('/todo/scheduled')}
+        >
+          <LinearGradient
+            colors={['#6366f1', '#818cf8']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={s.progressBanner}
+          >
+            <View style={s.progressLeft}>
+              <Text style={s.progressLabel}>Today's Progress</Text>
+              <Text style={s.progressCount}>
+                {counts.todayCompleted}
+                <Text style={s.progressTotal}> / {todayTotal} tasks</Text>
+              </Text>
+              <View style={s.progressBarBg}>
+                <View style={[s.progressBarFill, { width: `${progressPct}%` }]} />
+              </View>
+            </View>
+            <View style={s.progressRing}>
+              <Text style={s.progressPct}>{progressPct}%</Text>
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* Quick Filters */}
+        <View style={s.filtersRow}>
+          <FilterChip
+            icon="calendar-outline"
+            label="Scheduled"
+            count={counts.all}
+            color="#4f46e5"
+            onPress={() => router.push('/todo/all')}
+          />
+          <FilterChip
+            icon="checkmark-done"
+            label="Done"
+            count={counts.completed}
+            color="#10b981"
+            onPress={() => router.push('/todo/completed')}
+          />
+          <FilterChip
+            icon="flag"
+            label="Priority"
+            count={counts.priority}
+            color="#ef4444"
+            onPress={() => router.push('/todo/priority')}
+          />
+          <FilterChip
+            icon="flash"
+            label="Focus"
+            count={counts.focus}
+            color="#8b5cf6"
+            onPress={() => router.push({ pathname: '/todo/list-items', params: { listId: 'focus' } })}
+          />
+        </View>
+
+        {/* My Lists */}
+        <View style={s.sectionHeader}>
+          <Text style={s.sectionTitle}>My Lists</Text>
+          <TouchableOpacity onPress={() => setListModalOpen(true)} style={s.addListBtn}>
+            <Ionicons name="add" size={18} color="#6366f1" />
+            <Text style={s.addListText}>New</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Cards grid */}
-        <View style={s.grid}>
-          <DashCard label="Scheduled"        count={counts.all}        href="/todo/all" />
-          <DashCard label="Today's Tasks"  count={counts.scheduled}  href="/todo/scheduled" />
-          <DashCard label="Completed"  count={counts.completed}  href="/todo/completed" />
-          <DashCard label="Priority"   count={counts.priority}   href="/todo/priority" />
-          <DashCard label="Focus Sessions" count={counts.focus} href={{ pathname: '/todo/list-items', params: { listId: 'focus' } }} />
-        </View>
-
-        {/* (Removed: View Completed button for dashboard) */}
-
-        {/* My Lists header */}
-        <View style={s.sectionHeader}>
-          <Text style={s.sectionTitle}>My Lists</Text>
-        </View>
-
-        {/* Swipeable list rows */}
         <SwipeListView
           data={lists}
           keyExtractor={l => l.id}
           scrollEnabled={false}
-          contentContainerStyle={{ rowGap: 10 }}
+          contentContainerStyle={{ rowGap: 8 }}
           renderItem={({ item }) => {
             const activeCount = counts.perList[item.id] ?? 0;
             return (
               <View style={s.rowWrapper}>
                 <TouchableOpacity
                   style={s.listRow}
-                  activeOpacity={0.9}
+                  activeOpacity={0.85}
                   onPress={() =>
                     router.push({ pathname: '/todo/list-items', params: { listId: item.id } })
                   }
                 >
                   <View style={[s.listIconCircle, { backgroundColor: item.color || '#e5e7eb' }]}>
-                    {!!item.icon && <Ionicons name={item.icon as any} size={18} color="#fff" />}
+                    {!!item.icon && <Ionicons name={item.icon as any} size={16} color="#fff" />}
                   </View>
-                  <Text style={s.listName}>{item.name}</Text>
-                  <Text style={s.listCount}>{activeCount}</Text>
+                  <View style={s.listInfo}>
+                    <Text style={s.listName}>{item.name}</Text>
+                    <Text style={s.listMeta}>
+                      {activeCount} active task{activeCount !== 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                  <View style={s.listCountBadge}>
+                    <Text style={s.listCount}>{activeCount}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color="#c7c7cc" style={{ marginLeft: 6 }} />
                 </TouchableOpacity>
               </View>
             );
           }}
           renderHiddenItem={({ item }) => (
             <View style={s.rowBack}>
-              {/* Right-side delete */}
               <TouchableOpacity
                 style={s.deleteAction}
                 onPress={() => deleteList(item.id)}
               >
-                <Ionicons name="trash" size={22} color="#fff" />
+                <Ionicons name="trash" size={20} color="#fff" />
               </TouchableOpacity>
             </View>
           )}
-          rightOpenValue={-84}
+          rightOpenValue={-76}
           leftOpenValue={0}
           disableRightSwipe={true}
           disableLeftSwipe={false}
@@ -162,187 +239,346 @@ export default function TodoDashboard() {
           previewOpenDelay={Platform.select({ ios: 800, android: 1200 })}
           previewOpenValue={-50}
         />
+
+        {/* Empty state for lists */}
+        {lists.length === 0 && (
+          <TouchableOpacity style={s.emptyListCard} onPress={() => setListModalOpen(true)}>
+            <Ionicons name="folder-open-outline" size={32} color="#a5b4fc" />
+            <Text style={s.emptyListTitle}>No lists yet</Text>
+            <Text style={s.emptyListHint}>Tap to create your first list</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
-      {/* Two actions: new reminder + new list */}
-      <View style={s.fabRow}>
-        <TouchableOpacity
-          style={[s.fab, { backgroundColor: '#4f46e5' }]}
-          onPress={() => router.push('/todo/new')}
+      {/* FAB */}
+      <TouchableOpacity
+        style={s.fab}
+        activeOpacity={0.9}
+        onPress={() => router.push('/todo/new')}
+      >
+        <LinearGradient
+          colors={['#6366f1', '#4f46e5']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={s.fabGradient}
         >
-          <Text style={s.fabText}>New Reminder</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[s.fab, { backgroundColor: '#2563eb' }]}
-          onPress={() => setListModalOpen(true)}
-        >
-          <Text style={s.fabText}>New List</Text>
-        </TouchableOpacity>
-      </View>
+          <Ionicons name="add" size={26} color="#fff" />
+          <Text style={s.fabText}>New Task</Text>
+        </LinearGradient>
+      </TouchableOpacity>
 
       <CreateListModal
         visible={listModalOpen}
         onClose={() => setListModalOpen(false)}
       />
-
-      {/* Completed Tasks Bottom Sheet (removed for index dashboard per request) */}
-      {/* (sheet removed) */}
     </SafeAreaView>
   );
 }
 
-function DashCard({
+function FilterChip({
+  icon,
   label,
   count,
-  href,
+  color,
+  onPress,
 }: {
+  icon: string;
   label: string;
   count: number;
-  href: any;
+  color: string;
+  onPress: () => void;
 }) {
-  const getGradient = (
-    name: string
-  ): { colors: [string, string]; locations?: [number, number] } => {
-    switch (name) {
-      case 'Priority':
-        // to left, #f01919 -> #f6b5b5
-        return { colors: ['#f01919', '#f6b5b5'] };
-      case "Today's Tasks":
-        // to left, #0000ff -> #ffffff
-        return { colors: ['#0099cc', '#33ccff'] };
-      case 'Scheduled':
-        // to left, #666697 (5%) -> #000066 (100%)
-        return { colors: ['#666697', '#000066'], locations: [0.35, 1] };
-      case 'Completed':
-        // to left, #3333cc -> #666699
-        return { colors: ['#b8becc', '#666699'] };
-      case 'Focus Sessions':
-        // to left, #9900cc -> #3366ff
-        return { colors: ['#9900cc', '#3366ff'] };
-      default:
-        return { colors: ['#5a5f69', '#2b2d31'] };
-    }
-  };
   return (
-    <Link href={href} asChild>
-      <TouchableOpacity style={s.card} activeOpacity={0.9}>
-        {(() => { const cfg = getGradient(label); return (
-          <LinearGradient
-            colors={cfg.colors}
-            locations={cfg.locations}
-            // to left: right -> left
-            start={{ x: 1, y: 0 }}
-            end={{ x: 0, y: 0 }}
-            style={s.cardInner}
-          >
-          <Text style={s.cardTitle}>{label}</Text>
-          <Text style={s.cardCount}>{count}</Text>
-          </LinearGradient>
-        ); })()}
-      </TouchableOpacity>
-    </Link>
+    <TouchableOpacity style={s.filterChip} activeOpacity={0.8} onPress={onPress}>
+      <View style={[s.filterIconWrap, { backgroundColor: color + '15' }]}>
+        <Ionicons name={icon as any} size={18} color={color} />
+      </View>
+      <Text style={s.filterCount}>{count}</Text>
+      <Text style={s.filterLabel}>{label}</Text>
+    </TouchableOpacity>
   );
 }
 
 const s = StyleSheet.create({
-  title: { fontSize: 24, fontWeight: '800', color: '#3f51d1', marginBottom: 12 },
+  // Header
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1e1b4b',
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  headerBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#eef2ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 16 },
-  completedBtn: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#eef2ff', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, marginBottom: 12 },
-  completedBtnText: { color: '#3f51d1', fontWeight: '700' },
-  card: {
-    width: '48%',
-    borderRadius: 16,
+  // Progress banner
+  progressBanner: {
+    borderRadius: 20,
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    shadowColor: '#6366f1',
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  progressLeft: {
+    flex: 1,
+  },
+  progressLabel: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  progressCount: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  progressTotal: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.7)',
+  },
+  progressBarBg: {
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderRadius: 3,
+    marginTop: 12,
     overflow: 'hidden',
-    shadowColor: '#222',
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
+  },
+  progressBarFill: {
+    height: 6,
+    backgroundColor: '#fff',
+    borderRadius: 3,
+    minWidth: 6,
+  },
+  progressRing: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 16,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  progressPct: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+
+  // Filter chips
+  filtersRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 24,
+  },
+  filterChip: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  cardInner: {
-    padding: 10,
+  filterIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
   },
-  cardTitle: { color: '#ffffff', fontWeight: '700', marginBottom: 10 },
-  cardCount: { color: '#ffffff', fontSize: 28, fontWeight: '800' },
+  filterCount: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1e1b4b',
+  },
+  filterLabel: {
+    fontSize: 11,
+    color: '#6b7280',
+    marginTop: 1,
+    fontWeight: '600',
+  },
 
-  sectionHeader: { marginTop: 2, marginBottom: 10, paddingRight: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionTitle: { fontSize: 20, fontWeight: '800', color: '#111827' },
+  // Section header
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1e1b4b',
+  },
+  addListBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#eef2ff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  addListText: {
+    color: '#6366f1',
+    fontWeight: '700',
+    fontSize: 13,
+  },
 
+  // List rows
   rowWrapper: {
     backgroundColor: '#fff',
     borderRadius: 14,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
   listRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     backgroundColor: '#fff',
   },
   listIconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  listName: { fontSize: 18, color: '#111827', flex: 1 },
-  listCount: {
-    minWidth: 28,
-    height: 28,
-    borderRadius: 14,
+  listInfo: {
+    flex: 1,
+  },
+  listName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e1b4b',
+  },
+  listMeta: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 1,
+  },
+  listCountBadge: {
+    minWidth: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: '#eef2ff',
-    color: '#3f51d1',
-    textAlign: 'center',
-    lineHeight: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  listCount: {
+    color: '#6366f1',
+    fontSize: 13,
     fontWeight: '800',
   },
 
-  // Hidden row (right)
+  // Swipe delete
   rowBack: {
     flex: 1,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'flex-end',
     backgroundColor: 'transparent',
-    paddingRight: 6,
-    marginTop: 0,
+    paddingRight: 4,
   },
   deleteAction: {
-    width: 78,
-    height: '90%',
-    backgroundColor: '#f87171',
-    borderRadius: 12,
+    width: 70,
+    height: '88%',
+    backgroundColor: '#ef4444',
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    // subtle shadow for iOS
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
+    shadowColor: '#ef4444',
+    shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 3,
   },
 
-  fabRow: {
+  // Empty state
+  emptyListCard: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#e0e7ff',
+    borderStyle: 'dashed',
+  },
+  emptyListTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#6366f1',
+    marginTop: 8,
+  },
+  emptyListHint: {
+    fontSize: 13,
+    color: '#9ca3af',
+    marginTop: 2,
+  },
+
+  // FAB
+  fab: {
     position: 'absolute',
     right: 16,
-    bottom: 24,
-    gap: 10,
+    bottom: 28,
+    borderRadius: 28,
+    overflow: 'hidden',
+    shadowColor: '#6366f1',
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
   },
-  fab: {
-    paddingHorizontal: 18,
+  fabGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
     paddingVertical: 14,
-    borderRadius: 30,
+    gap: 6,
   },
-  fabText: { color: 'white', fontWeight: '800' },
-
-  // Bottom sheet styles
-  sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheetContainer: { backgroundColor: '#ffffff', padding: 16, borderTopLeftRadius: 16, borderTopRightRadius: 16 },
-  sheetHeader: { fontSize: 18, fontWeight: '800', color: '#111827', marginBottom: 10 },
-  completedRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e5e7eb' },
-  completedTitle: { color: '#111827', fontWeight: '700' },
-  completedMeta: { color: '#6b7280', fontSize: 12, marginTop: 2 },
-  sheetCloseBtn: { alignSelf: 'flex-end', backgroundColor: '#e5e7eb', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, marginTop: 8 },
+  fabText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 15,
+  },
 });

@@ -58,7 +58,13 @@ export default function DetailsScreen() {
 
   const [priority, setPriority] = useState(String(existingTodo?.priority || params.priority || 'medium'));
   const [urlValue, setUrlValue] = useState(String(existingTodo?.url || params.url || ''));
-  const [images, setImages] = useState<string[]>(existingTodo?.images || []);
+  const [images, setImages] = useState<string[]>(() => {
+    if (existingTodo?.images?.length) return existingTodo.images;
+    if (params.images) {
+      try { return JSON.parse(String(params.images)); } catch {}
+    }
+    return [];
+  });
   const [attachments, setAttachments] = useState<Array<{ uri: string; name: string; mimeType?: string }>>(existingTodo?.attachments || []);
 
   // Modal states
@@ -121,7 +127,7 @@ export default function DetailsScreen() {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         allowsMultipleSelection: true,
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         quality: 0.9,
         selectionLimit: 5,
       });
@@ -262,6 +268,7 @@ export default function DetailsScreen() {
           repeat: repeat,
           location: locationEnabled && selectedLocation ? selectedLocation.address : '',
           url: urlValue || '',
+          images: JSON.stringify(images),
           // Preserve Pomodoro settings
           pomodoroEnabled: String(params.pomodoroEnabled || ''),
           workTime: String(params.workTime || ''),

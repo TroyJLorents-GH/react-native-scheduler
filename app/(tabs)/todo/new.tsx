@@ -18,6 +18,7 @@ import {
   View
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -67,8 +68,11 @@ export default function NewReminder() {
       if (params.repeat) setRepeat(String(params.repeat));
       if (params.location) setLocation(String(params.location));
       if (params.url) setUrl(String(params.url));
+      if (params.images) {
+        try { setImages(JSON.parse(String(params.images))); } catch {}
+      }
     }
-    
+
     // Restore form data when returning from details page
     if (params.detailsSaved === 'true') {
       if (params.title) setTitle(String(params.title));
@@ -108,6 +112,9 @@ export default function NewReminder() {
       if (params.workUnit) setWorkUnit(String(params.workUnit) as 'min' | 'hour');
       if (params.breakTime) setBreakTime(Number(params.breakTime));
       if (params.breakUnit) setBreakUnit(String(params.breakUnit) as 'min' | 'hour');
+      if (params.images) {
+        try { setImages(JSON.parse(String(params.images))); } catch {}
+      }
     }
   }, [params.preSelectedListId, params.fromListPicker, params.detailsSaved, params.editId, params.title, params.notes, params.priority, params.dueDate, params.dueTime, params.subtasks, params.earlyReminder, params.repeat, params.location, params.url, params.pomodoroEnabled, params.workTime, params.workUnit, params.breakTime, params.breakUnit]);
 
@@ -219,7 +226,7 @@ export default function NewReminder() {
     if (isEditing) {
       router.back();
     } else {
-      router.push({
+      router.replace({
         pathname: '/todo/list-items',
         params: { listId: selectedListId }
       });
@@ -253,6 +260,7 @@ export default function NewReminder() {
         repeat: repeat,
         location: location,
         url: url,
+        images: JSON.stringify(images),
         ...(options?.openLocation ? { openLocation: 'true' } : {}),
       }
     });
@@ -281,7 +289,8 @@ export default function NewReminder() {
         earlyReminder: earlyReminder,
         repeat: repeat,
         location: location,
-        url: url
+        url: url,
+        images: JSON.stringify(images),
       }
     });
   };
@@ -348,6 +357,15 @@ export default function NewReminder() {
 
   const showQuickDateOptions = () => setShowDateChips(prev => !prev);
 
+  const getPriorityColor = (p: string) => {
+    switch (p) {
+      case 'high': return '#ff3b30';
+      case 'medium': return '#ff9500';
+      case 'low': return '#34c759';
+      default: return '#007AFF';
+    }
+  };
+
   const showPriorityOptions = () => {
     Alert.alert(
       'Priority',
@@ -386,7 +404,7 @@ export default function NewReminder() {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         allowsMultipleSelection: true,
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         quality: 0.9,
         selectionLimit: 5,
       });
@@ -634,6 +652,27 @@ export default function NewReminder() {
         onCancel={hideDatePicker}
       />
     </KeyboardAwareScrollView>
+
+    {/* Keyboard Sticky Toolbar */}
+    <KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
+      <View style={styles.keyboardToolbar}>
+        <TouchableOpacity style={styles.toolbarBtn} onPress={showDatePicker}>
+          <Ionicons name="calendar-outline" size={22} color={selectedDate ? '#34c759' : '#007AFF'} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.toolbarBtn} onPress={() => navigateToDetails({ openLocation: true })}>
+          <Ionicons name="navigate-outline" size={22} color="#007AFF" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.toolbarBtn} onPress={() => navigateToDetails()}>
+          <Ionicons name="pricetag-outline" size={22} color="#007AFF" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.toolbarBtn} onPress={showPriorityOptions}>
+          <Ionicons name="flag-outline" size={22} color={priority ? getPriorityColor(priority) : '#007AFF'} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.toolbarBtn} onPress={showPhotoOptions}>
+          <Ionicons name="camera-outline" size={22} color="#007AFF" />
+        </TouchableOpacity>
+      </View>
+    </KeyboardStickyView>
     </SafeAreaView>
   );
 }
@@ -868,5 +907,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     paddingVertical: 8,
     paddingHorizontal: 4,
+  },
+  keyboardToolbar: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: '#1c1c1e',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderTopWidth: 0.5,
+    borderTopColor: '#38383a',
+  },
+  toolbarBtn: {
+    padding: 8,
   },
 });

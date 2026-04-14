@@ -5,6 +5,7 @@ import React, { useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import 'react-native-gesture-handler';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import GlobalFocusBanner from '../components/GlobalFocusBanner';
 import { EventProvider } from '../context/EventContext';
 import { FocusProvider } from '../context/FocusContext';
@@ -99,6 +100,7 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
+        <KeyboardProvider>
         <ThemeProvider>
           <EventProvider>
             <ListProvider>
@@ -114,6 +116,7 @@ export default function RootLayout() {
             </ListProvider>
           </EventProvider>
         </ThemeProvider>
+        </KeyboardProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>
   );
